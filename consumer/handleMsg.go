@@ -2,11 +2,11 @@ package consumer
 
 import (
 	"fmt"
-	"qq-bot-go/messageQueue"
+	"qq-bot-go/pkg/messagequeue"
 )
 
 // handleMsg: handle msg reported by components
-func (c *Consumer) handleMsg(msg *messageQueue.Msg) {
+func (c *Consumer) handleMsg(msg *messagequeue.Msg) {
 	for _, user := range c.Conf.Report {
 		if levelAllow(msg.Level, user.Level) {
 			for _, component := range user.Component {

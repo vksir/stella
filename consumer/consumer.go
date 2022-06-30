@@ -3,17 +3,17 @@ package consumer
 import (
 	"log"
 	"qq-bot-go/confs"
-	"qq-bot-go/messageQueue"
-	"qq-bot-go/producer/qq"
+	"qq-bot-go/pkg/messagequeue"
+	"qq-bot-go/third_party/qq"
 )
 
 type Consumer struct {
-	MQ   *messageQueue.MsgQueue
+	MQ   *messagequeue.MsgQueue
 	QQ   qq.QQ
 	Conf *confs.Conf
 }
 
-func NewConsumer(mq *messageQueue.MsgQueue, q qq.QQ, conf *confs.Conf) *Consumer {
+func NewConsumer(mq *messagequeue.MsgQueue, q qq.QQ, conf *confs.Conf) *Consumer {
 	return &Consumer{mq, q, conf}
 }
 

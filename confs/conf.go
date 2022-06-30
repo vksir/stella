@@ -7,6 +7,8 @@ import (
 	"qq-bot-go/common"
 )
 
+var CONF *Conf
+
 type Conf struct {
 	Mirai    Server `yaml:"mirai"`
 	NsServer Server `yaml:"ns_server"`
@@ -32,7 +34,7 @@ type Components []struct {
 	Short string `yaml:"short"`
 }
 
-func NewConf(f *common.FilePath) *Conf {
+func NewConf(f *common.FilePath) {
 	c := Conf{}
 
 	data, err := os.ReadFile(f.ConfigPath)
@@ -43,7 +45,7 @@ func NewConf(f *common.FilePath) *Conf {
 	if err != nil {
 		log.Panicln(err)
 	}
-	return &c
+	CONF = &c
 }
 
 func (c *Conf) Save(f *common.FilePath) {

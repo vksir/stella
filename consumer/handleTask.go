@@ -3,13 +3,13 @@ package consumer
 import (
 	"fmt"
 	"log"
-	"qq-bot-go/messageQueue"
+	"qq-bot-go/pkg/messagequeue"
 	"regexp"
 	"strings"
 )
 
 // handleTask: handle task send from qq
-func (c *Consumer) handleTask(task *messageQueue.Task) {
+func (c *Consumer) handleTask(task *messagequeue.Task) {
 	for _, user := range c.Conf.Task {
 		if strings.HasPrefix(task.Content, "/") {
 			if task.Sender.Id == user.Id {
