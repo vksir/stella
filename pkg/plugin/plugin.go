@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"qq-bot-go/pkg/event"
+	"qq-bot-go/pkg/plugin/fanzhiyi"
 	"qq-bot-go/pkg/plugin/girl"
 	"qq-bot-go/pkg/plugin/luxun"
 	"qq-bot-go/pkg/plugin/pixiv"
@@ -14,6 +15,7 @@ func LoadPlugins() {
 	Register(Handler(luxun.New()))
 	Register(Handler(pixiv.New()))
 	Register(Handler(girl.New()))
+	Register(fanzhiyi.New())
 }
 
 type Handler interface {
