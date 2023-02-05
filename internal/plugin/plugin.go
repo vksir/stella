@@ -1,20 +1,20 @@
 package plugin
 
 import (
+	"qq-bot-go/internal/plugin/fanzhiyi"
+	"qq-bot-go/internal/plugin/girl"
+	"qq-bot-go/internal/plugin/luxun"
+	"qq-bot-go/internal/plugin/pixiv"
 	"qq-bot-go/pkg/event"
-	"qq-bot-go/pkg/plugin/fanzhiyi"
-	"qq-bot-go/pkg/plugin/girl"
-	"qq-bot-go/pkg/plugin/luxun"
-	"qq-bot-go/pkg/plugin/pixiv"
 )
 
 var Plugins []Handler
 
 func LoadPlugins() {
-	Register(Handler(New()))
-	Register(Handler(luxun.New()))
-	Register(Handler(pixiv.New()))
-	Register(Handler(girl.New()))
+	Register(New())
+	Register(luxun.New())
+	Register(pixiv.New())
+	Register(girl.New())
 	Register(fanzhiyi.New())
 }
 

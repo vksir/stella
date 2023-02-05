@@ -1,7 +1,6 @@
 package mirai
 
 import (
-	"log"
 	"math/rand"
 	"strconv"
 )
@@ -29,6 +28,6 @@ func (r responseQueues) putResponse(e *EventReceive) {
 	if queue, ok := r[e.SyncId]; ok {
 		queue <- e
 	} else {
-		log.Println("putResponse failed")
+		log.Info("putResponse failed")
 	}
 }

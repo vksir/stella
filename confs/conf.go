@@ -4,7 +4,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"log"
 	"os"
-	"qq-bot-go/common"
+	"qq-bot-go/internal/common"
 )
 
 var CONF *Conf
