@@ -2,7 +2,7 @@ package mirai
 
 import (
 	"encoding/json"
-	"qq-bot-go/internal/event"
+	"qq-bot-go/internal/plugin/event"
 )
 
 const (

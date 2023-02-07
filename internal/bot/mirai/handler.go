@@ -2,47 +2,61 @@ package mirai
 
 import (
 	"context"
+	"fmt"
+	"qq-bot-go/internal/common/config"
+	"qq-bot-go/internal/listener/terrariarun"
 	"qq-bot-go/internal/plugin"
+	"strconv"
+)
+
+const (
+	bufSize = 32
 )
 
 type Handler struct {
-	channel     chan *Receive
+	recvChannel chan *Receive
 	sendChannel chan *Send
+
+	TerrariaRunReportChannel chan *terrariarun.Event
 }
 
 func NewHandler(sendChannel chan *Send) *Handler {
 	h := Handler{
-		channel:     make(chan *Receive, 32),
-		sendChannel: sendChannel,
+		recvChannel:              make(chan *Receive, bufSize),
+		sendChannel:              sendChannel,
+		TerrariaRunReportChannel: make(chan *terrariarun.Event, bufSize),
 	}
 	return &h
 }
 
-func (h *Handler) Channel() chan *Receive {
-	return h.channel
+func (h *Handler) RecvChannel() chan *Receive {
+	return h.recvChannel
 }
 
 func (h *Handler) Start(ctx context.Context) error {
 	log.Info("Begin handler")
-	go func() {
-		for {
-			select {
-			case e := <-h.channel:
-				if e.SyncId == "-1" || e.SyncId == "" {
-					switch e.Data.Type {
-					case TypeFriendMessage, TypeGroupMessage:
-						h.handleFriendAndGroupMessage(e)
-					}
-				} else {
-					// TODO handle response
-				}
-			case <-ctx.Done():
-				log.Info("Handler stopped")
-				return
-			}
-		}
-	}()
+	go h.watchRecv(ctx)
+	go h.watchTerrariaRunReport(ctx)
 	return nil
+}
+
+func (h *Handler) watchRecv(ctx context.Context) {
+	for {
+		select {
+		case e := <-h.recvChannel:
+			if e.SyncId == "-1" || e.SyncId == "" {
+				switch e.Data.Type {
+				case TypeFriendMessage, TypeGroupMessage:
+					h.handleFriendAndGroupMessage(e)
+				}
+			} else {
+				// TODO handle response
+			}
+		case <-ctx.Done():
+			log.Info("Handler stopped")
+			return
+		}
+	}
 }
 
 func (h *Handler) handleFriendAndGroupMessage(recv *Receive) {
@@ -59,5 +73,36 @@ func (h *Handler) handleFriendAndGroupMessage(recv *Receive) {
 			send.Content.Target = recv.Data.Sender.Group.Id
 		}
 		h.sendChannel <- send
+	}
+}
+
+func (h *Handler) watchTerrariaRunReport(ctx context.Context) {
+	for {
+		select {
+		case e := <-h.TerrariaRunReportChannel:
+			for _, f := range config.CFG.Bot.Mirai.Report.Friend {
+				idString, err := strconv.Atoi(f.Id)
+				if err != nil {
+					log.Error("Invalid id: ", err)
+					continue
+				}
+				send := Send{
+					SyncId:  "",
+					Command: CommandSendFriendMessage,
+					Content: Content{
+						Target: idString,
+						MessageChains: []MessageChain{
+							{
+								Type: ChainPlain,
+								Text: fmt.Sprintf("Terraria: %s", e.Msg),
+							},
+						},
+					},
+				}
+				h.sendChannel <- &send
+			}
+		case <-ctx.Done():
+			return
+		}
 	}
 }

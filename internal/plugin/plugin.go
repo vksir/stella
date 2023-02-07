@@ -1,7 +1,7 @@
 package plugin
 
 import (
-	"qq-bot-go/internal/event"
+	"qq-bot-go/internal/plugin/event"
 	"qq-bot-go/internal/plugin/fanzhiyi"
 	"qq-bot-go/internal/plugin/girl"
 	"qq-bot-go/internal/plugin/luxun"
@@ -35,7 +35,7 @@ func Handle(req *event.Event) []*Event {
 	return events
 }
 
-func LoadPlugins() {
+func Load() {
 	register(NewHelp())
 	register(luxun.New())
 	register(pixiv.New())

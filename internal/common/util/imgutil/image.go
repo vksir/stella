@@ -5,7 +5,7 @@ import (
 	"encoding/base64"
 	"image"
 	"image/png"
-	"qq-bot-go/asserts"
+	"qq-bot-go/assets"
 	"strings"
 )
 
@@ -23,7 +23,7 @@ func DecodeBase64(data string) (image.Image, error) {
 }
 
 func ReadImage(path string) (image.Image, error) {
-	if reader, err := asserts.FS.Open(path); err != nil {
+	if reader, err := assets.FS.Open(path); err != nil {
 		return nil, err
 	} else if img, _, err := image.Decode(reader); err != nil {
 		return nil, err

@@ -1,7 +1,7 @@
 package fanzhiyi
 
 import (
-	"qq-bot-go/internal/event"
+	"qq-bot-go/internal/plugin/event"
 	"regexp"
 )
 
@@ -25,7 +25,7 @@ func (h *Handler) Parse(text string) []string {
 }
 
 func (h *Handler) Handle(req *event.Event) *event.Event {
-	text := req.GetAllPlainText()
+	text := req.Text()
 	args := h.Parse(text)
 	if len(args) == 0 {
 		return nil

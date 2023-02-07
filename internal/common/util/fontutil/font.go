@@ -3,11 +3,11 @@ package fontutil
 import (
 	"github.com/golang/freetype/truetype"
 	"golang.org/x/image/font"
-	"qq-bot-go/asserts"
+	"qq-bot-go/assets"
 )
 
 func LoadFont(path string, points float64) (font.Face, error) {
-	fontBytes, err := asserts.FS.ReadFile(path)
+	fontBytes, err := assets.FS.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}

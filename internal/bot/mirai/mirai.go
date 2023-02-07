@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"nhooyr.io/websocket"
-	"qq-bot-go/confs"
+	"qq-bot-go/internal/common/config"
 	"qq-bot-go/internal/common/logging"
 	"sync"
 	"time"
@@ -25,7 +25,7 @@ type Mirai struct {
 
 func NewMirai() *Mirai {
 	m := Mirai{
-		url:         fmt.Sprintf("ws://%s:%d/all", confs.CONF.Mirai.Host, confs.CONF.Mirai.Port),
+		url:         fmt.Sprintf("ws://%s:%d/all", config.CFG.Bot.Mirai.Host, config.CFG.Bot.Mirai.Port),
 		wg:          &sync.WaitGroup{},
 		sendChannel: make(chan *Send, 32),
 	}
@@ -142,5 +142,8 @@ func (m *Mirai) read() ([]byte, error) {
 }
 
 func (m *Mirai) write(msg []byte) error {
+	if m.conn == nil {
+		return fmt.Errorf("no connection")
+	}
 	return m.conn.Write(context.Background(), websocket.MessageText, msg)
 }

@@ -4,6 +4,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"os"
+	"qq-bot-go/internal/common/constant"
 )
 
 const logPath = "./bot.log"
@@ -28,7 +29,7 @@ func getEncoder() zapcore.Encoder {
 }
 
 func getWriteSyncer() zapcore.WriteSyncer {
-	f, err := os.OpenFile(logPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	f, err := os.OpenFile(constant.LogPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		panic(err)
 	}

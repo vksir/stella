@@ -53,6 +53,9 @@ type Interface interface {
 }
 
 type Event struct {
+	Time   int64  `json:"time"`
+	Type   string `json:"type"`
+	Level  string `json:"level"`
 	Chains []Chain
 }
 
@@ -63,7 +66,7 @@ type Chain struct {
 	Base64 string
 }
 
-func (e *Event) GetAllPlainText() string {
+func (e *Event) Text() string {
 	var text string
 	for _, c := range e.Chains {
 		if c.Type == ChainPlain {

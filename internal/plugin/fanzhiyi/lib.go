@@ -5,14 +5,14 @@ import (
 	"github.com/fogleman/gg"
 	"image"
 	"image/color"
-	"qq-bot-go/pkg/util/fontutil"
-	"qq-bot-go/pkg/util/imgutil"
+	"qq-bot-go/internal/common/util/fontutil"
+	"qq-bot-go/internal/common/util/imgutil"
 	"strings"
 )
 
 const (
-	ImgPath    = "asserts/img/fan_zhi_yi.png"
-	FontPath   = "asserts/font/msyh.ttf"
+	ImgPath    = "assets/img/fan_zhi_yi.png"
+	FontPath   = "assets/font/msyh.ttf"
 	FontWeight = 54
 )
 

@@ -2,7 +2,7 @@ package plugin
 
 import (
 	"fmt"
-	"qq-bot-go/internal/event"
+	"qq-bot-go/internal/plugin/event"
 	"regexp"
 	"strings"
 )
@@ -27,7 +27,7 @@ func (h *Help) Parse(text string) []string {
 }
 
 func (h *Help) Handle(req *event.Event) *event.Event {
-	text := req.GetAllPlainText()
+	text := req.Text()
 	args := h.Parse(text)
 	if len(args) == 0 {
 		return nil

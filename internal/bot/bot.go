@@ -2,20 +2,17 @@ package bot
 
 import (
 	"context"
-	mirai2 "qq-bot-go/internal/bot/mirai"
+	"qq-bot-go/internal/bot/mirai"
+	"qq-bot-go/internal/listener/terrariarun"
 )
 
-type Bot interface {
-	Name() string
-	Start() error
-	listenMsg()
-	handleEvent()
-}
+func Run(terrariaRunListener *terrariarun.Listener) {
+	bot := mirai.NewMirai()
 
-func LoadAgents() {
-	bot := mirai2.NewMirai()
-	handler := mirai2.NewHandler(bot.SendChannel())
-	bot.RegisterRecvChannel(handler.Channel())
+	handler := mirai.NewHandler(bot.SendChannel())
+	bot.RegisterRecvChannel(handler.RecvChannel())
+	terrariaRunListener.RegisterChannel(handler.TerrariaRunReportChannel)
+
 	if err := bot.Start(); err != nil {
 		panic(err)
 	}

@@ -5,25 +5,23 @@ import (
 	"github.com/fogleman/gg"
 	"image"
 	"image/color"
-	"qq-bot-go/pkg/util/fontutil"
-	"qq-bot-go/pkg/util/imgutil"
+	"qq-bot-go/internal/common/util/fontutil"
+	"qq-bot-go/internal/common/util/imgutil"
 	"strings"
 )
 
 const (
-	ImgPath    = "asserts/img/lu_xun.jpg"
-	FontPath   = "asserts/font/msyh.ttf"
 	FontWeight = 34
 )
 
 func getImg(text string) (image.Image, error) {
-	img, err := imgutil.ReadImage("asserts/img/lu_xun.jpg")
+	img, err := imgutil.ReadImage("assets/img/lu_xun.jpg")
 	if err != nil {
 		return nil, err
 	}
 	dc := gg.NewContextForImage(img)
 	dc.SetColor(color.White)
-	if fontFace, err := fontutil.LoadFont("asserts/font/msyh.ttf", FontWeight); err != nil {
+	if fontFace, err := fontutil.LoadFont("assets/font/msyh.ttf", FontWeight); err != nil {
 		return nil, err
 	} else {
 		dc.SetFontFace(fontFace)
