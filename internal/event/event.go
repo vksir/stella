@@ -1,28 +1,28 @@
 package event
 
 const (
-	TypePlain = "Plain"
-	TypeImage = "Image"
-	TypeVoice = "Voice"
+	ChainPlain = "Plain"
+	ChainImage = "Image"
+	ChainVoice = "Voice"
 )
 
 type Send struct {
-	Send []Chain `json:"send"`
+	Chains []Chain `json:"chains"`
 }
 
 func (s *Send) AppendChain(chainType, text, url, base64 string) {
 	c := NewChain(chainType, text, url, base64)
-	s.Send = append(s.Send, c)
+	s.Chains = append(s.Chains, c)
 }
 
 type Receive struct {
-	Receive []Chain `json:"receive"`
+	Chains []Chain `json:"receive"`
 }
 
 func (r Receive) GetAllPlainText() string {
 	var text string
-	for _, e := range r.Receive {
-		if e.Type == TypePlain {
+	for _, e := range r.Chains {
+		if e.Type == ChainPlain {
 			text += e.Text
 		}
 	}
@@ -31,14 +31,7 @@ func (r Receive) GetAllPlainText() string {
 
 func (r *Receive) AppendChain(chainType, text, url, base64 string) {
 	c := NewChain(chainType, text, url, base64)
-	r.Receive = append(r.Receive, c)
-}
-
-type Chain struct {
-	Type   string `json:"type"`
-	Text   string `json:"text"`
-	Url    string `json:"url"`
-	Base64 string `json:"base64"`
+	r.Chains = append(r.Chains, c)
 }
 
 func NewChain(chainType, text, url, base64 string) Chain {
@@ -53,4 +46,29 @@ func NewChain(chainType, text, url, base64 string) Chain {
 		c.Base64 = base64
 	}
 	return c
+}
+
+type Interface interface {
+	ToEvent() *Event
+}
+
+type Event struct {
+	Chains []Chain
+}
+
+type Chain struct {
+	Type   string
+	Text   string
+	Url    string
+	Base64 string
+}
+
+func (e *Event) GetAllPlainText() string {
+	var text string
+	for _, c := range e.Chains {
+		if c.Type == ChainPlain {
+			text += c.Text
+		}
+	}
+	return text
 }

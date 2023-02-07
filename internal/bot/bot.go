@@ -1,7 +1,8 @@
 package bot
 
 import (
-	"qq-bot-go/internal/bot/mirai"
+	"context"
+	mirai2 "qq-bot-go/internal/bot/mirai"
 )
 
 type Bot interface {
@@ -12,8 +13,13 @@ type Bot interface {
 }
 
 func LoadAgents() {
-	bot := mirai.NewHandler()
+	bot := mirai2.NewMirai()
+	handler := mirai2.NewHandler(bot.SendChannel())
+	bot.RegisterRecvChannel(handler.Channel())
 	if err := bot.Start(); err != nil {
+		panic(err)
+	}
+	if err := handler.Start(context.Background()); err != nil {
 		panic(err)
 	}
 }

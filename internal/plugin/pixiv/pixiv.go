@@ -1,7 +1,7 @@
 package pixiv
 
 import (
-	"qq-bot-go/pkg/event"
+	"qq-bot-go/internal/event"
 	"regexp"
 )
 
@@ -15,7 +15,7 @@ func New() *Handler {
 
 type Handler struct{}
 
-func (h *Handler) Title() string {
+func (h *Handler) Name() string {
 	return "涩图"
 }
 
@@ -23,13 +23,13 @@ func (h *Handler) Help() string {
 	return "<中文量词>份涩图"
 }
 
-func (h Handler) Parse(text string) []string {
+func (h *Handler) Parse(text string) []string {
 	re := regexp.MustCompile(`([来一二两三四五六七八九十])份涩图`)
 	return re.FindStringSubmatch(text)
 }
 
-func (h *Handler) Handle(r event.Receive) *event.Send {
-	text := r.GetAllPlainText()
+func (h *Handler) Handle(req *event.Event) *event.Event {
+	text := req.GetAllPlainText()
 	args := h.Parse(text)
 	if len(args) == 0 {
 		return nil
@@ -49,11 +49,14 @@ func (h *Handler) Handle(r event.Receive) *event.Send {
 			"十": 10,
 		}
 		num := numMap[args[1]]
-		var send event.Send
-		imageUrls := GetPixivImageUrls(num)
+		var resp event.Event
+		imageUrls := getPixivImageUrls(num)
 		for _, u := range imageUrls {
-			send.AppendChain(event.TypeImage, "", u, "")
+			resp.Chains = append(resp.Chains, event.Chain{
+				Type: event.ChainImage,
+				Url:  u,
+			})
 		}
-		return &send
+		return &resp
 	}
 }

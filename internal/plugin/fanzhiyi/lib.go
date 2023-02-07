@@ -16,7 +16,7 @@ const (
 	FontWeight = 54
 )
 
-func GetImage(text string) (image.Image, error) {
+func getImg(text string) (image.Image, error) {
 	img, err := imgutil.ReadImage(ImgPath)
 	if err != nil {
 		return nil, err
@@ -39,8 +39,8 @@ func GetImage(text string) (image.Image, error) {
 	return dc.Image(), nil
 }
 
-func GetBase64(text string) (string, error) {
-	img, err := GetImage(text)
+func getImgBase64(text string) (string, error) {
+	img, err := getImg(text)
 	if err != nil {
 		return "", err
 	}

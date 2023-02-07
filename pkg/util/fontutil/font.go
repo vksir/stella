@@ -7,7 +7,7 @@ import (
 )
 
 func LoadFont(path string, points float64) (font.Face, error) {
-	fontBytes, err := asserts.ReadFile(path)
+	fontBytes, err := asserts.FS.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}

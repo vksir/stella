@@ -1,7 +1,7 @@
 package girl
 
 import (
-	"qq-bot-go/pkg/event"
+	"qq-bot-go/internal/event"
 	"regexp"
 )
 
@@ -13,7 +13,7 @@ func New() *Handler {
 
 type Handler struct{}
 
-func (h *Handler) Title() string {
+func (h *Handler) Name() string {
 	return "三次元美图"
 }
 
@@ -26,8 +26,8 @@ func (h *Handler) Parse(text string) []string {
 	return re.FindStringSubmatch(text)
 }
 
-func (h *Handler) Handle(r event.Receive) *event.Send {
-	text := r.GetAllPlainText()
+func (h *Handler) Handle(req *event.Event) *event.Event {
+	text := req.GetAllPlainText()
 	args := h.Parse(text)
 	if len(args) == 0 {
 		return nil
@@ -47,11 +47,14 @@ func (h *Handler) Handle(r event.Receive) *event.Send {
 			"十": 10,
 		}
 		num := numMap[args[1]]
-		var send event.Send
-		imageUrls := GetGirlImgUrls(num)
+		var resp event.Event
+		imageUrls := getGirlImgUrls(num)
 		for _, u := range imageUrls {
-			send.AppendChain(event.TypeImage, "", u, "")
+			resp.Chains = append(resp.Chains, event.Chain{
+				Type: event.ChainImage,
+				Url:  u,
+			})
 		}
-		return &send
+		return &resp
 	}
 }

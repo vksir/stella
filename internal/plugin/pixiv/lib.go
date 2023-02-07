@@ -6,7 +6,7 @@ import (
 	"strconv"
 )
 
-func GetPixivImageUrls(num int) []string {
+func getPixivImageUrls(num int) []string {
 	resp, err := resty.New().R().
 		SetQueryParam("num", strconv.Itoa(num)).
 		Get("https://api.vksir.zone/pixiv")

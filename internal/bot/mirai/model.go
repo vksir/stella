@@ -2,7 +2,7 @@ package mirai
 
 import (
 	"encoding/json"
-	"qq-bot-go/pkg/event"
+	"qq-bot-go/internal/event"
 )
 
 const (
@@ -23,18 +23,25 @@ const (
 	CommandSendNudge         = "sendNudge"
 )
 
-type EventReceive struct {
+type Receive struct {
 	SyncId string `json:"syncId"`
 	Data   Data   `json:"data"`
 }
 
+type Send struct {
+	SyncId     string      `json:"syncId"`
+	Command    string      `json:"command"`
+	SubCommand interface{} `json:"subCommand,omitempty"`
+	Content    Content     `json:"content"`
+}
+
 type Data struct {
-	Type         string         `json:"type"`
-	Sender       Sender         `json:"sender"`
-	MessageChain []MessageChain `json:"messageChain"`
-	Code         int            `json:"code"`
-	Msg          string         `json:"msg"`
-	MessageId    int            `json:"messageId"`
+	Type          string         `json:"type"`
+	Sender        Sender         `json:"sender"`
+	MessageChains []MessageChain `json:"messageChain"`
+	Code          int            `json:"code"`
+	Msg           string         `json:"msg"`
+	MessageId     int            `json:"messageId"`
 }
 
 type Sender struct {
@@ -75,87 +82,76 @@ type MessageNode struct {
 	MessageId int `json:"messageId"`
 }
 
-type EventSend struct {
-	SyncId     string      `json:"syncId"`
-	Command    string      `json:"command"`
-	SubCommand interface{} `json:"subCommand,omitempty"`
-	Content    Content     `json:"content"`
-}
-
-func (e *EventSend) appendMessageChain(chainType, text, url, base64 string) {
-	var chain MessageChain
-	chain.Type = chainType
-	if text != "" {
-		chain.Text = text
-	}
-	if url != "" {
-		chain.Url = url
-	}
-	if base64 != "" {
-		chain.Base64 = base64
-	}
-	e.appendCustomMessageChain(chain)
-}
-
-func (e *EventSend) appendCustomMessageChain(chain MessageChain) {
-	e.Content.MessageChain = append(e.Content.MessageChain, chain)
-}
-
-func (e EventSend) log() string {
-	for i, chain := range e.Content.MessageChain {
-		if chain.Base64 != "" {
-			chain.Base64 = ""
-		}
-		e.Content.MessageChain[i] = chain
-	}
-	b, _ := json.Marshal(e)
-	return string(b)
-}
-
 type Content struct {
-	Target       int            `json:"target"`
-	MessageChain []MessageChain `json:"messageChain"`
+	Target        int            `json:"target"`
+	MessageChains []MessageChain `json:"messageChain"`
 }
 
-func (e EventReceive) transformToStandardReceive() event.Receive {
-	var receive event.Receive
-	for _, chain := range e.Data.MessageChain {
-		switch chain.Type {
-		case ChainPlain:
-			receive.AppendChain(event.TypePlain, chain.Text, "", "")
-		case ChainImage:
-			receive.AppendChain(event.TypeImage, "", chain.Url, chain.Base64)
-		case ChainVoice:
-			receive.AppendChain(event.TypeVoice, "", chain.Url, chain.Base64)
-		}
+func NewReceive(e *event.Event) *Receive {
+	r := Receive{
+		Data: Data{
+			MessageChains: eventChainsToMessageChains(e.Chains),
+		},
 	}
-	return receive
+	return &r
 }
 
-func newSendEvent(send *event.Send) *EventSend {
-	sendEvent := EventSend{
-		Content: Content{},
+func NewSend(e *event.Event) *Send {
+	s := Send{
+		Content: Content{
+			MessageChains: eventChainsToMessageChains(e.Chains),
+		},
 	}
-	for _, c := range send.Send {
-		switch c.Type {
-		case event.TypePlain:
-			sendEvent.appendMessageChain(ChainPlain, c.Text, "", "")
-		case event.TypeImage:
-			sendEvent.appendMessageChain(ChainImage, "", c.Url, c.Base64)
-		case event.TypeVoice:
-			sendEvent.appendMessageChain(ChainVoice, "", c.Url, c.Base64)
-		}
-	}
-	return &sendEvent
+	return &s
 }
 
-func newForwardEvent(messageIds []int) *EventSend {
-	forwardEvent := EventSend{Content: Content{}}
-	chain := MessageChain{Type: ChainForward}
-	for _, id := range messageIds {
-		node := MessageNode{MessageId: id}
-		chain.NodeList = append(chain.NodeList, node)
+func (r *Receive) ToEvent() *event.Event {
+	return &event.Event{
+		Chains: messageChainsToEventChains(r.Data.MessageChains),
 	}
-	forwardEvent.appendCustomMessageChain(chain)
-	return &forwardEvent
+}
+
+func (s *Send) ToEvent() *event.Event {
+	return &event.Event{
+		Chains: messageChainsToEventChains(s.Content.MessageChains),
+	}
+}
+
+func (s *Send) String() string {
+	copySend := *s
+	for i := range copySend.Content.MessageChains {
+		copySend.Content.MessageChains[i].Base64 = "..."
+	}
+	bytes, err := json.Marshal(copySend)
+	if err != nil {
+		log.Error("To string failed: ", err)
+		return ""
+	}
+	return string(bytes)
+}
+
+func messageChainsToEventChains(messageChains []MessageChain) []event.Chain {
+	var chains []event.Chain
+	for _, messageChain := range messageChains {
+		chains = append(chains, event.Chain{
+			Type:   messageChain.Type,
+			Text:   messageChain.Text,
+			Url:    messageChain.Url,
+			Base64: messageChain.Base64,
+		})
+	}
+	return chains
+}
+
+func eventChainsToMessageChains(chains []event.Chain) []MessageChain {
+	var messageChains []MessageChain
+	for _, chain := range chains {
+		messageChains = append(messageChains, MessageChain{
+			Type:   chain.Type,
+			Text:   chain.Text,
+			Url:    chain.Url,
+			Base64: chain.Base64,
+		})
+	}
+	return messageChains
 }

@@ -1,8 +1,7 @@
 package luxun
 
 import (
-	"log"
-	"qq-bot-go/pkg/event"
+	"qq-bot-go/internal/event"
 	"regexp"
 )
 
@@ -14,7 +13,7 @@ func New() *Handler {
 	return &Handler{}
 }
 
-func (h *Handler) Title() string {
+func (h *Handler) Name() string {
 	return "鲁迅说"
 }
 
@@ -27,19 +26,24 @@ func (h *Handler) Parse(text string) []string {
 	return re.FindStringSubmatch(text)
 }
 
-func (h *Handler) Handle(r event.Receive) *event.Send {
-	text := r.GetAllPlainText()
+func (h *Handler) Handle(req *event.Event) *event.Event {
+	text := req.GetAllPlainText()
 	args := h.Parse(text)
 	if len(args) == 0 {
 		return nil
 	} else {
-		var send event.Send
-		if data, err := GetBase64(args[1]); err != nil {
-			log.Println(err)
-			send.AppendChain(event.TypePlain, "太长惹，鲁迅说不完", "", "")
+		var resp event.Event
+		if data, err := getImgBase64(args[1]); err != nil {
+			resp.Chains = append(resp.Chains, event.Chain{
+				Type: event.ChainImage,
+				Text: "太长惹，鲁迅说不完",
+			})
 		} else {
-			send.AppendChain(event.TypeImage, "", "", data)
+			resp.Chains = append(resp.Chains, event.Chain{
+				Type:   event.ChainImage,
+				Base64: data,
+			})
 		}
-		return &send
+		return &resp
 	}
 }

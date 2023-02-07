@@ -9,7 +9,7 @@ const (
 	hanHanGirlUrl = "https://api.vvhan.com/api/girl?type=https"
 )
 
-func GetGirlImgUrls(num int) []string {
+func getGirlImgUrls(num int) []string {
 	c := resty.New().
 		SetRedirectPolicy(resty.NoRedirectPolicy())
 	var urls []string

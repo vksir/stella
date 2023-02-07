@@ -23,7 +23,7 @@ func DecodeBase64(data string) (image.Image, error) {
 }
 
 func ReadImage(path string) (image.Image, error) {
-	if reader, err := asserts.Open(path); err != nil {
+	if reader, err := asserts.FS.Open(path); err != nil {
 		return nil, err
 	} else if img, _, err := image.Decode(reader); err != nil {
 		return nil, err
