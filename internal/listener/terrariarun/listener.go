@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-var log = logging.SugaredLogger()
+var log = logging.GetSugaredLogger()
 
 type Listener struct {
 	c              *Client

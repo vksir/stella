@@ -9,6 +9,13 @@ import (
 
 var CFG *Config
 
+func GetConfig() *Config {
+	if CFG == nil {
+		Read()
+	}
+	return CFG
+}
+
 func Read() {
 	if _, err := os.Stat(constant.ConfigPath); os.IsNotExist(err) {
 		panic(err)

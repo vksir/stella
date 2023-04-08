@@ -3,6 +3,7 @@ package config
 type Config struct {
 	Bot struct {
 		Mirai struct {
+			Me     string `json:"me"`
 			Host   string `json:"host"`
 			Port   int    `json:"port"`
 			Report struct {
@@ -23,4 +24,5 @@ type Config struct {
 			Port int    `json:"port"`
 		} `json:"terraria-run"`
 	} `json:"listener"`
+	BingUrl string `json:"bing_url"`
 }

@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-var log = logging.SugaredLogger()
+var log = logging.GetSugaredLogger()
 
 type Mirai struct {
 	url               string

@@ -22,7 +22,11 @@ type Event struct {
 	RespEvent  *event.Event
 }
 
-func Handle(req *event.Event) []*Event {
+func HandleDefault(req *event.Event) []*Event {
+	return Handle(req, plugins)
+}
+
+func Handle(req *event.Event, plugins []Interface) []*Event {
 	var events []*Event
 	for _, p := range plugins {
 		if resp := p.Handle(req); resp != nil {

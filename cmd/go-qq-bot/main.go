@@ -10,7 +10,7 @@ import (
 	"qq-bot-go/internal/server"
 )
 
-var log = logging.SugaredLogger()
+var log = logging.GetSugaredLogger()
 
 func main() {
 	log.Info("Hello stella ^_^")

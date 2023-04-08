@@ -111,6 +111,15 @@ func (r *Receive) ToEvent() *event.Event {
 	}
 }
 
+func (r *Receive) IsAt(id int) bool {
+	for _, messageChain := range r.Data.MessageChains {
+		if messageChain.Type == ChainAt && messageChain.Target == id {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *Send) ToEvent() *event.Event {
 	return &event.Event{
 		Chains: messageChainsToEventChains(s.Content.MessageChains),

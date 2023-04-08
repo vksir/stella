@@ -6,12 +6,15 @@ import (
 	"qq-bot-go/internal/common/config"
 	"qq-bot-go/internal/listener/terrariarun"
 	"qq-bot-go/internal/plugin"
+	"qq-bot-go/internal/plugin/bing"
 	"strconv"
 )
 
 const (
 	bufSize = 32
 )
+
+var cfg = config.GetConfig()
 
 type Handler struct {
 	recvChannel chan *Receive
@@ -60,7 +63,21 @@ func (h *Handler) watchRecv(ctx context.Context) {
 }
 
 func (h *Handler) handleFriendAndGroupMessage(recv *Receive) {
-	events := plugin.Handle(recv.ToEvent())
+	events := plugin.HandleDefault(recv.ToEvent())
+	if len(events) == 0 {
+		if recv.Data.Type == TypeGroupMessage {
+			meId, err := strconv.Atoi(cfg.Bot.Mirai.Me)
+			if err != nil {
+				log.Error("invalid me id:", err)
+				return
+			}
+			if !recv.IsAt(meId) {
+				return
+			}
+		}
+		events = plugin.Handle(recv.ToEvent(), []plugin.Interface{bing.New()})
+	}
+
 	for _, e := range events {
 		// TODO rand SyncId
 		send := NewSend(e.RespEvent)
@@ -80,17 +97,17 @@ func (h *Handler) watchTerrariaRunReport(ctx context.Context) {
 	for {
 		select {
 		case e := <-h.TerrariaRunReportChannel:
-			for _, f := range config.CFG.Bot.Mirai.Report.Friend {
-				idString, err := strconv.Atoi(f.Id)
+			for _, f := range cfg.Bot.Mirai.Report.Friend {
+				id, err := strconv.Atoi(f.Id)
 				if err != nil {
-					log.Error("Invalid id: ", err)
+					log.Error("invalid id:", err)
 					continue
 				}
 				send := Send{
 					SyncId:  "",
 					Command: CommandSendFriendMessage,
 					Content: Content{
-						Target: idString,
+						Target: id,
 						MessageChains: []MessageChain{
 							{
 								Type: ChainPlain,
