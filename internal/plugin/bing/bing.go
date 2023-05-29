@@ -4,17 +4,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/go-resty/resty/v2"
-	"qq-bot-go/internal/common/config"
-	"qq-bot-go/internal/common/logging"
-	"qq-bot-go/internal/plugin/event"
 	"regexp"
+	"stella/internal/comm"
+	"stella/internal/plugin/event"
 	"strings"
 	"time"
 )
 
 var sess *Session
-var cfg = config.GetConfig()
-var log = logging.GetSugaredLogger()
+var cfg = comm.GetConfig()
+var log = comm.GetSugaredLogger()
 
 type Handler struct {
 }
@@ -71,7 +70,7 @@ func ask(prompt string) (string, error) {
 		sess = &Session{Time: time.Now()}
 	}
 	resp, err := resty.New().
-		SetTimeout(time.Second*60).
+		SetTimeout(time.Minute*3).
 		R().
 		SetQueryParam("session_id", sess.Id).
 		SetQueryParam("prompt", prompt).

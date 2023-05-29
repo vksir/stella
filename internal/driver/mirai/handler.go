@@ -3,10 +3,10 @@ package mirai
 import (
 	"context"
 	"fmt"
-	"qq-bot-go/internal/common/config"
-	"qq-bot-go/internal/listener/terrariarun"
-	"qq-bot-go/internal/plugin"
-	"qq-bot-go/internal/plugin/bing"
+	"stella/internal/comm"
+	"stella/internal/listener/terrariarun"
+	"stella/internal/plugin"
+	"stella/internal/plugin/bing"
 	"strconv"
 )
 
@@ -14,7 +14,7 @@ const (
 	bufSize = 32
 )
 
-var cfg = config.GetConfig()
+var cfg = comm.GetConfig()
 
 type Handler struct {
 	recvChannel chan *Receive

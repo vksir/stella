@@ -2,8 +2,8 @@ package plugin
 
 import (
 	"fmt"
-	"qq-bot-go/internal/plugin/event"
 	"regexp"
+	"stella/internal/plugin/event"
 	"strings"
 )
 

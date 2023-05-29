@@ -1,19 +1,16 @@
-package logging
+package comm
 
 import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"os"
-	"qq-bot-go/internal/common/constant"
 )
-
-const logPath = "./bot.log"
 
 func GetSugaredLogger() *zap.SugaredLogger {
 	return zap.S()
 }
 
-func init() {
+func initLog() {
 	encoder := getEncoder()
 	writeSyncer := getWriteSyncer()
 	core := zapcore.NewCore(encoder, writeSyncer, zap.DebugLevel)
@@ -29,7 +26,7 @@ func getEncoder() zapcore.Encoder {
 }
 
 func getWriteSyncer() zapcore.WriteSyncer {
-	f, err := os.OpenFile(constant.LogPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	f, err := os.OpenFile(LogPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		panic(err)
 	}

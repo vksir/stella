@@ -5,8 +5,7 @@ import (
 	"github.com/fogleman/gg"
 	"image"
 	"image/color"
-	"qq-bot-go/internal/common/util/fontutil"
-	"qq-bot-go/internal/common/util/imgutil"
+	"stella/internal/comm"
 	"strings"
 )
 
@@ -15,13 +14,13 @@ const (
 )
 
 func getImg(text string) (image.Image, error) {
-	img, err := imgutil.ReadImage("assets/img/lu_xun.jpg")
+	img, err := comm.LoadImg("assets/img/lu_xun.jpg")
 	if err != nil {
 		return nil, err
 	}
 	dc := gg.NewContextForImage(img)
 	dc.SetColor(color.White)
-	if fontFace, err := fontutil.LoadFont("assets/font/msyh.ttf", FontWeight); err != nil {
+	if fontFace, err := comm.LoadFont("assets/font/msyh.ttf", FontWeight); err != nil {
 		return nil, err
 	} else {
 		dc.SetFontFace(fontFace)
@@ -42,7 +41,7 @@ func getImgBase64(text string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	data, err := imgutil.EncodeBase64(img)
+	data, err := comm.ImgEncodeBase64(img)
 	if err != nil {
 		return "", err
 	}

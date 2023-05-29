@@ -1,11 +1,11 @@
 package plugin
 
 import (
-	"qq-bot-go/internal/plugin/event"
-	"qq-bot-go/internal/plugin/fanzhiyi"
-	"qq-bot-go/internal/plugin/girl"
-	"qq-bot-go/internal/plugin/luxun"
-	"qq-bot-go/internal/plugin/pixiv"
+	"stella/internal/plugin/event"
+	"stella/internal/plugin/fanzhiyi"
+	"stella/internal/plugin/girl"
+	"stella/internal/plugin/luxun"
+	"stella/internal/plugin/pixiv"
 )
 
 var plugins []Interface

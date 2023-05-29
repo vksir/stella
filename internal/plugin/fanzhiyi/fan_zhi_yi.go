@@ -1,8 +1,8 @@
 package fanzhiyi
 
 import (
-	"qq-bot-go/internal/plugin/event"
 	"regexp"
+	"stella/internal/plugin/event"
 )
 
 type Handler struct{}

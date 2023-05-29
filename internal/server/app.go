@@ -2,7 +2,7 @@ package server
 
 import (
 	"github.com/gin-gonic/gin"
-	"qq-bot-go/internal/server/router"
+	"stella/internal/server/router"
 )
 
 func Run() {

@@ -1,0 +1,8 @@
+[stella]
+
+[cqhttp]
+addr = "http://127.0.0.1:5700"
+report_id = 233333333
+
+[neutronstar]
+addr = "http://127.0.0.1:5800"

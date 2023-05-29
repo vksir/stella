@@ -1,1 +1,1 @@
-# qq-bot-go
+# stella

@@ -5,13 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"nhooyr.io/websocket"
-	"qq-bot-go/internal/common/config"
-	"qq-bot-go/internal/common/logging"
+	"stella/internal/comm"
 	"sync"
 	"time"
 )
 
-var log = logging.GetSugaredLogger()
+var log = comm.GetSugaredLogger()
 
 type Mirai struct {
 	url               string
@@ -25,7 +24,7 @@ type Mirai struct {
 
 func NewMirai() *Mirai {
 	m := Mirai{
-		url:         fmt.Sprintf("ws://%s:%d/all", config.CFG.Bot.Mirai.Host, config.CFG.Bot.Mirai.Port),
+		url:         fmt.Sprintf("ws://%s:%d/all", comm.CFG.Bot.Mirai.Host, comm.CFG.Bot.Mirai.Port),
 		wg:          &sync.WaitGroup{},
 		sendChannel: make(chan *Send, 32),
 	}

@@ -1,8 +1,8 @@
 package pixiv
 
 import (
-	"qq-bot-go/internal/plugin/event"
 	"regexp"
+	"stella/internal/plugin/event"
 )
 
 const (
