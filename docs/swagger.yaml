@@ -1,0 +1,67 @@
+basePath: /
+definitions:
+  adapter.Chain:
+    properties:
+      text:
+        type: string
+      type:
+        type: string
+    type: object
+  adapter.Event:
+    properties:
+      ans:
+        items:
+          $ref: '#/definitions/adapter.Chain'
+        type: array
+      ask:
+        items:
+          $ref: '#/definitions/adapter.Chain'
+        type: array
+      metadata:
+        $ref: '#/definitions/adapter.Metadata'
+      session_id:
+        type: string
+      type:
+        type: string
+      user_id:
+        type: string
+    type: object
+  adapter.Metadata:
+    properties:
+      platform:
+        type: string
+      platform_id:
+        type: string
+      userName:
+        type: string
+    type: object
+host: localhost:5801
+info:
+  contact: {}
+  description: Stella AI Agent 项目的 HTTP API
+  title: Stella AI Agent API
+  version: "1.0"
+paths:
+  /api/chat:
+    post:
+      consumes:
+      - application/json
+      description: 模拟各大平台接收消息并返回AI对话结果
+      parameters:
+      - description: 聊天请求参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/adapter.Event'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/adapter.Event'
+      summary: 发送聊天消息
+      tags:
+      - Chat
+swagger: "2.0"

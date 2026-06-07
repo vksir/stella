@@ -1,0 +1,103 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Stella AI Agent 项目的 HTTP API",
+        "title": "Stella AI Agent API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "host": "localhost:5801",
+    "basePath": "/",
+    "paths": {
+        "/api/chat": {
+            "post": {
+                "description": "模拟各大平台接收消息并返回AI对话结果",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Chat"
+                ],
+                "summary": "发送聊天消息",
+                "parameters": [
+                    {
+                        "description": "聊天请求参数",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/adapter.Event"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/adapter.Event"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "adapter.Chain": {
+            "type": "object",
+            "properties": {
+                "text": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "adapter.Event": {
+            "type": "object",
+            "properties": {
+                "ans": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/adapter.Chain"
+                    }
+                },
+                "ask": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/adapter.Chain"
+                    }
+                },
+                "metadata": {
+                    "$ref": "#/definitions/adapter.Metadata"
+                },
+                "session_id": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "adapter.Metadata": {
+            "type": "object",
+            "properties": {
+                "platform": {
+                    "type": "string"
+                },
+                "platform_id": {
+                    "type": "string"
+                },
+                "userName": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}

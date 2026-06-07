@@ -1,0 +1,22 @@
+listen = "0.0.0.0:5801"
+host = "127.0.0.1:5801"
+log_level = "warn"
+
+[[model]]
+name = "gpt-4o"
+type = "openai"
+use = "chat"
+base_url = "https://api.openai.com/v1/"
+api_key = "sk-xxxxxx"
+
+[[model]]
+name = "gpt-4o-mini"
+type = "openai"
+use = "chat_flash"
+base_url = "https://api.openai.com/v1/"
+api_key = "sk-xxxxxx"
+
+[[mcp]]
+name = "example-mcp"
+base_url = "http://127.0.0.1:8000"
+protocol = "http"
