@@ -18,9 +18,16 @@ node_modules
 # AI
 .docs
 .pi
+.scratch
 
 # Test
 .workspace
 
 # Windows: prevent accidental nul device-name files
 nul
+
+# Stella
+.test-tmp-*
+config.toml
+dist/
+data/

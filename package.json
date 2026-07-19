@@ -1,11 +1,18 @@
 {
   "dependencies": {
-    "@earendil-works/pi-coding-agent": "^0.80.10"
+    "@earendil-works/pi-coding-agent": "^0.80.10",
+    "@elysia/openapi": "^1.4.15",
+    "elysia": "^1.4.29"
   },
   "name": "stella",
   "private": true,
   "scripts": {
-    "proto:group-format": "bun .scratch/stella-spec/prototype-05/main.ts"
+    "dev": "bun run src/index.ts",
+    "test": "bun test",
+    "typecheck": "bun run tsc --noEmit",
+    "e2e": "bun run scripts/e2e.ts",
+    "build": "bun run scripts/build.ts",
+    "build:linux": "bun run scripts/build.ts linux"
   },
   "devDependencies": {
     "@types/bun": "latest"

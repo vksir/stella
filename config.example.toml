@@ -1,0 +1,32 @@
+# Stella 配置文件
+# 复制此文件为 config.toml 并修改
+
+[owner]
+qq = "123456789"              # 管理员 QQ 号
+api_token = "change-me"       # 管理员 API token（Bearer）
+
+[napcat]
+listen = "127.0.0.1:8082"     # 反向 WS 监听地址（Stella 为服务端）
+token = "change-me"           # 校验 NapCat 握手 Authorization: Bearer
+
+[api]
+listen = "127.0.0.1:3000"     # HTTP API 监听地址
+
+[model]
+provider = "anthropic"
+name = "claude-sonnet-4-5"
+# 模型 API key 存放在 data/auth.json（由 SDK ModelRuntime 管理）
+
+[paths]
+data_dir = "./data"           # 数据目录（= SDK agentDir）
+
+[memory]
+max_entries_per_user = 200    # 每用户记忆上限
+max_content_chars = 2000      # 单条记忆上限
+
+[short_term_memory]
+max_tokens = 10000            # 上下文窗口 token 上限
+max_age_days = 3              # 消息最大保留天数
+
+[tools]
+whitelist = ["memory_save", "memory_search", "memory_list", "memory_delete"]
