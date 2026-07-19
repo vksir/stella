@@ -13,3 +13,14 @@
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
+node_modules
+
+# AI
+.docs
+.pi
+
+# Test
+.workspace
+
+# Windows: prevent accidental nul device-name files
+nul

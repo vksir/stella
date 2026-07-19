@@ -1,0 +1,16 @@
+{
+  "dependencies": {
+    "@earendil-works/pi-coding-agent": "^0.80.10"
+  },
+  "name": "stella",
+  "private": true,
+  "scripts": {
+    "proto:group-format": "bun .scratch/stella-spec/prototype-05/main.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.9.3"
+  }
+}
