@@ -12,9 +12,9 @@ import { createIdentityResolver, type IdentityResolver } from "./identity";
 import { SessionRegistry } from "./sessions-registry";
 import { SessionFactory } from "./session-factory";
 import { createMemoryTools } from "./tools/memory";
-import { startApiServer, type ApiServerHandle } from "./api/api";
+import { createApiApp, startApiServer, type ApiServerHandle } from "./api/api";
 import { startQQAdapter, type QQAdapterHandle } from "./adapters/qq/qq";
-import { createTriggerNoteExtension } from "./adapters/qq/conversation";
+import { createTriggerNoteExtension, TriggerNoteBus } from "./adapters/qq/conversation";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 
 /**
@@ -107,7 +107,9 @@ export async function bootstrap(argv: string[] = process.argv): Promise<AppConte
   const memoryTools = createMemoryTools(memoryStore, config.memory.max_content_chars, getUserForSession);
 
   // 8. 会话工厂 + 注册表
-  const triggerNoteExt = createTriggerNoteExtension();
+  // 触发注记中转：组合根创建一次，注入扩展与 QQ 适配器两处
+  const noteBus = new TriggerNoteBus();
+  const triggerNoteExt = createTriggerNoteExtension(noteBus);
   const sessionFactory = new SessionFactory({
     cwd,
     agentDir,
@@ -129,8 +131,20 @@ export async function bootstrap(argv: string[] = process.argv): Promise<AppConte
     qqAdapter: null,
   } as AppContext;
 
-  // 9. 启动 API 服务器
-  const apiServer = await startApiServer(ctxWithoutServer);
+  // 9. 构建 API 应用（未监听；WS 路由须在其后、listen 之前注册）
+  const apiApp = createApiApp(ctxWithoutServer);
+
+  // 10. 启动 QQ 适配器：把反向 WS 注册到 API 应用（共享端口）
+  let qqAdapter: QQAdapterHandle | null = null;
+  try {
+    qqAdapter = await startQQAdapter(ctxWithoutServer, noteBus, apiApp);
+  } catch (err) {
+    console.error("[Stella] QQ 适配器启动失败:", err);
+  }
+  ctxWithoutServer.qqAdapter = qqAdapter;
+
+  // 11. 监听（HTTP + WS 共享端口）
+  const apiServer = await startApiServer(apiApp, config.api);
   ctxWithoutServer.apiServer = apiServer;
   _ctx = ctxWithoutServer;
 
@@ -138,15 +152,6 @@ export async function bootstrap(argv: string[] = process.argv): Promise<AppConte
   console.log(`[Stella] 数据目录: ${dataDir}`);
   console.log(`[Stella] SDK agentDir: ${agentDir}`);
   console.log(`[Stella] 模型: ${config.model.provider}/${config.model.name} (thinking: ${config.model.thinking_level ?? "high"})`);
-
-  // 10. 启动 QQ 适配器
-  let qqAdapter: QQAdapterHandle | null = null;
-  try {
-    qqAdapter = await startQQAdapter(_ctx);
-  } catch (err) {
-    console.error("[Stella] QQ 适配器启动失败:", err);
-  }
-  ctxWithoutServer.qqAdapter = qqAdapter;
 
   return _ctx;
 }

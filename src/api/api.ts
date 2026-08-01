@@ -1,9 +1,16 @@
 import { Elysia } from "elysia";
 import { openapi } from "@elysia/openapi";
 import type { AppContext } from "../index";
+import type { ApiConfig } from "../config";
 import { sessionRoutes } from "./sessions";
 import { memoryRoutes } from "./memories";
 import { userRoutes } from "./users";
+
+/**
+ * Elysia 实例的任意变体：.use/.ws 链式扩展后泛型各不相同，统一为此类型。
+ * （Elysia 跨模块泛型不兼容，见下方路由的 as any 桥接）
+ */
+export type AnyElysia = Elysia<any, any, any, any, any, any, any>;
 
 /**
  * API 服务器返回句柄：包含停止方法与监听信息。
@@ -30,8 +37,8 @@ export interface ApiServerHandle {
  * - /openapi                 — Scalar 文档 UI
  * - /openapi/json            — OpenAPI spec JSON
  */
-export async function startApiServer(ctx: AppContext): Promise<ApiServerHandle> {
-  const { config, sessionStore, memoryStore, users, identityStore, identity, sessions, setSessionUser, transaction } = ctx;
+export function createApiApp(ctx: AppContext): AnyElysia {
+  const { sessionStore, memoryStore, users, identityStore, identity, sessions, setSessionUser, transaction } = ctx;
 
   const app = new Elysia()
     // OpenAPI 插件
@@ -66,8 +73,13 @@ export async function startApiServer(ctx: AppContext): Promise<ApiServerHandle> 
       });
     });
 
+  return app;
+}
+
+/** 监听 Elysia 应用（HTTP + 已注册的 WS 路由共享端口）。 */
+export async function startApiServer(app: AnyElysia, config: ApiConfig): Promise<ApiServerHandle> {
   // 解析监听地址
-  const [hostname, portStr] = config.api.listen.split(":");
+  const [hostname, portStr] = config.listen.split(":");
   const port = portStr ? parseInt(portStr, 10) : 3000;
 
   app.listen({

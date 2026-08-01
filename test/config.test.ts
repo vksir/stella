@@ -29,7 +29,7 @@ qq = "123456789"
 api_token = "sk-abc"
 
 [napcat]
-listen = "127.0.0.1:8082"
+path = "/onebot"
 token = "napcat-secret"
 
 [api]
@@ -59,7 +59,7 @@ whitelist = ["memory_save", "memory_search", "memory_list", "memory_delete"]
 
     expect(cfg.owner.qq).toBe("123456789");
     expect(cfg.owner.api_token).toBe("sk-abc");
-    expect(cfg.napcat.listen).toBe("127.0.0.1:8082");
+    expect(cfg.napcat.path).toBe("/onebot");
     expect(cfg.napcat.token).toBe("napcat-secret");
     expect(cfg.api.listen).toBe("127.0.0.1:3000");
     expect(cfg.model.provider).toBe("anthropic");

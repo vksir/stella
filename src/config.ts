@@ -8,7 +8,8 @@ export interface OwnerConfig {
 }
 
 export interface NapcatConfig {
-  listen: string;
+  /** 反向 WS 挂载路径（与 API 共享端口），默认 "/onebot" */
+  path: string;
   token: string;
 }
 
@@ -81,9 +82,6 @@ function validate(raw: Record<string, unknown>): StellaConfig {
   }
 
   const napcat = raw.napcat as Record<string, unknown> | undefined;
-  if (!napcat || typeof napcat.listen !== "string" || !napcat.listen) {
-    throw new Error("配置缺少必填字段: napcat.listen");
-  }
   if (!napcat || typeof napcat.token !== "string" || !napcat.token) {
     throw new Error("配置缺少必填字段: napcat.token");
   }
@@ -103,7 +101,10 @@ function validate(raw: Record<string, unknown>): StellaConfig {
 
   return {
     owner: { qq: owner.qq as string, api_token: owner.api_token as string },
-    napcat: { listen: napcat.listen as string, token: napcat.token as string },
+    napcat: {
+      path: typeof napcat.path === "string" && napcat.path ? napcat.path : "/onebot",
+      token: napcat.token as string,
+    },
     api: { listen: api.listen as string },
     model: {
       provider: model.provider as string,

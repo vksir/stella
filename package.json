@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "@earendil-works/pi-coding-agent": "^0.80.10",
+    "@earendil-works/pi-coding-agent": "^0.83.0",
     "@elysia/openapi": "^1.4.15",
     "elysia": "^1.4.29"
   },
@@ -15,9 +15,9 @@
     "build:linux": "bun run scripts/build.ts linux"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "^1.3.14"
   },
   "peerDependencies": {
-    "typescript": "^5.9.3"
+    "typescript": "^7.0.2"
   }
 }

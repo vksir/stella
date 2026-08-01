@@ -18,7 +18,7 @@ let resolver: IdentityResolver;
 
 const testConfig: StellaConfig = {
   owner: { qq: "99999", api_token: "master-token" },
-  napcat: { listen: "0.0.0.0:8082", token: "x" },
+  napcat: { path: "/onebot", token: "x" },
   api: { listen: "0.0.0.0:3000" },
   model: { provider: "x", name: "y" },
   paths: { data_dir: tmpDir },

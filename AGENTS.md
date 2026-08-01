@@ -1,3 +1,7 @@
+## 开发准则
+
+- 面向对象开发，不要过度抽象，非必要不定义接口
+
 ## Agent skills
 
 ### Issue tracker

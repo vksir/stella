@@ -1,14 +1,16 @@
 import { describe, expect, it, afterAll } from "bun:test";
-import { startOneBotServer } from "../../../src/adapters/qq/onebot";
-import type { OneBotServerHandle } from "../../../src/adapters/qq/onebot";
+import { Elysia } from "elysia";
+import { OneBotApiClient, OneBotWsServer } from "../../../src/adapters/qq/onebot";
+import type { OneBotHandlers } from "../../../src/adapters/qq/onebot";
 import type { OneBotMessageEvent, Segment } from "../../../src/adapters/qq/types";
 
 /**
- * 测试以真实 Bun WS 客户端扮演 NapCat，连接 onebot.ts 的反向 WS 服务端，
- * 从传输 seam 之外验证 echo 关联、超时、降级重试与事件分发。
+ * 测试以真实 Bun WS 客户端扮演 NapCat，连接注册在 Elysia 实例上的反向 WS 路由，
+ * 从传输 seam 之外验证 echo 关联、超时、降级重试、事件分发与鉴权。
  */
 
-const servers: OneBotServerHandle[] = [];
+const servers: OneBotWsServer[] = [];
+const apps: Elysia[] = [];
 const napcatClients: WebSocket[] = [];
 
 /** 假 NapCat 收到的 API 调用帧 */
@@ -22,31 +24,46 @@ function isCall(v: Record<string, any> | undefined): v is IncomingCall {
   return !!v && typeof v.echo === "string";
 }
 
+const NOOP_HANDLERS: OneBotHandlers = {
+  onMessage: () => {},
+};
+
 afterAll(() => {
   for (const c of napcatClients) {
     try { c.close(); } catch { /* ok */ }
   }
-  for (const s of servers) s.stop();
+  for (const a of apps) a.stop();
 });
 
 /** 启动服务端（端口 0 随机），并连入一个假 NapCat 客户端。 */
-async function startServer() {
-  const server = await startOneBotServer({ listen: "127.0.0.1:0", token: "test-token" });
+async function startServer(handlers: OneBotHandlers = NOOP_HANDLERS) {
+  const client = new OneBotApiClient();
+  const server = new OneBotWsServer(
+    { path: "/onebot", token: "test-token" },
+    handlers,
+    client,
+  );
   servers.push(server);
 
-  const napcat = await connectNapCat(server.port);
+  const app = new Elysia();
+  server.register(app);
+  apps.push(app);
+  app.listen({ hostname: "127.0.0.1", port: 0 });
+  const port = app.server?.port ?? 0;
+
+  const napcat = await connectNapCat(port);
   napcatClients.push(napcat);
   const incoming: IncomingCall[] = [];
   napcat.onmessage = (e: MessageEvent) => {
     incoming.push(JSON.parse(String(e.data)));
   };
 
-  return { server, napcat, incoming };
+  return { server, client, napcat, incoming };
 }
 
 function connectNapCat(port: number): Promise<WebSocket> {
   return new Promise((resolve, reject) => {
-    const ws = new WebSocket(`ws://127.0.0.1:${port}`, {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}/onebot`, {
       headers: {
         Authorization: "Bearer test-token",
         "X-Self-ID": "10001",
@@ -76,9 +93,9 @@ function reply(napcat: WebSocket, call: { echo: string }, resp: Record<string, u
 
 describe("API 调用（echo 关联）", () => {
   it("send 发送 action/params/echo 并等待回执", async () => {
-    const { server, napcat, incoming } = await startServer();
+    const { client, napcat, incoming } = await startServer();
 
-    const p = server.client.send("get_group_msg_history", { group_id: 1, count: 20 });
+    const p = client.send("get_group_msg_history", { group_id: 1, count: 20 });
     const call = await waitFor(() => incoming[0]);
 
     expect(call.action).toBe("get_group_msg_history");
@@ -91,9 +108,9 @@ describe("API 调用（echo 关联）", () => {
   });
 
   it("回执带错误 retcode 时原样返回（不吞错）", async () => {
-    const { server, napcat, incoming } = await startServer();
+    const { client, napcat, incoming } = await startServer();
 
-    const p = server.client.send("send_group_msg", { group_id: 1, message: [] });
+    const p = client.send("send_group_msg", { group_id: 1, message: [] });
     const call = await waitFor(() => incoming[0]);
 
     reply(napcat, call, { retcode: 100, data: {} });
@@ -102,11 +119,11 @@ describe("API 调用（echo 关联）", () => {
   });
 
   it("无回执时超时抛错并清理 echo", async () => {
-    const { server } = await startServer();
+    const { client } = await startServer();
 
     // 立即挂上 rejection handler（bun:test 的 expect().rejects
     // 对已 reject 的 promise 会挂死，不能在中间 await）
-    const p = server.client.send("slow_action", {}, 80);
+    const p = client.send("slow_action", {}, 80);
     await expect(p).rejects.toThrow(/超时/);
   });
 });
@@ -115,10 +132,10 @@ describe("API 调用（echo 关联）", () => {
 
 describe("消息发送", () => {
   it("sendGroupMessage 发送群消息段", async () => {
-    const { server, napcat, incoming } = await startServer();
+    const { client, napcat, incoming } = await startServer();
 
     const segs: Segment[] = [{ type: "text", data: { text: "你好" } }];
-    const p = server.client.sendGroupMessage(12345, segs);
+    const p = client.sendGroupMessage(12345, segs);
 
     const call = await waitFor(() => incoming[0]);
     expect(call.action).toBe("send_group_msg");
@@ -129,10 +146,10 @@ describe("消息发送", () => {
   });
 
   it("sendPrivateMessage 发送私聊消息段", async () => {
-    const { server, napcat, incoming } = await startServer();
+    const { client, napcat, incoming } = await startServer();
 
     const segs: Segment[] = [{ type: "text", data: { text: "悄悄话" } }];
-    const p = server.client.sendPrivateMessage(67890, segs);
+    const p = client.sendPrivateMessage(67890, segs);
 
     const call = await waitFor(() => incoming[0]);
     expect(call.action).toBe("send_private_msg");
@@ -145,13 +162,13 @@ describe("消息发送", () => {
 
 describe("群发失败降级重试", () => {
   it("retcode 非 0 且带 reply 段时去掉 reply 重发", async () => {
-    const { server, napcat, incoming } = await startServer();
+    const { client, napcat, incoming } = await startServer();
 
     const segs: Segment[] = [
       { type: "reply", data: { id: "999" } },
       { type: "text", data: { text: "收到" } },
     ];
-    const p = server.client.sendGroupMessage(12345, segs);
+    const p = client.sendGroupMessage(12345, segs);
 
     const first = await waitFor(() => (isCall(incoming[0]) ? incoming[0] : undefined));
     expect(first.action).toBe("send_group_msg");
@@ -170,10 +187,10 @@ describe("群发失败降级重试", () => {
   });
 
   it("retcode 非 0 且无 reply 段时不重发", async () => {
-    const { server, napcat, incoming } = await startServer();
+    const { client, napcat, incoming } = await startServer();
 
     const segs: Segment[] = [{ type: "text", data: { text: "无引用" } }];
-    const p = server.client.sendGroupMessage(12345, segs);
+    const p = client.sendGroupMessage(12345, segs);
 
     const first = await waitFor(() => (isCall(incoming[0]) ? incoming[0] : undefined));
     reply(napcat, first, { retcode: 100 });
@@ -188,12 +205,9 @@ describe("群发失败降级重试", () => {
 
 describe("事件分发", () => {
   it("message 事件回调 onMessage", async () => {
-    const { server, napcat } = await startServer();
-
     let received: OneBotMessageEvent | null = null;
-    server.setHandlers({
+    const { napcat } = await startServer({
       onMessage: (e) => { received = e; },
-      onMetaEvent: () => {},
     });
 
     napcat.send(JSON.stringify({
@@ -213,37 +227,13 @@ describe("事件分发", () => {
     expect(received!.sender.nickname).toBe("小明");
   });
 
-  it("meta_event 回调 onMetaEvent", async () => {
-    const { server, napcat } = await startServer();
-
-    let received: any = null;
-    server.setHandlers({
-      onMessage: () => {},
-      onMetaEvent: (e) => { received = e; },
-    });
-
-    napcat.send(JSON.stringify({
-      post_type: "meta_event",
-      meta_event_type: "lifecycle",
-      sub_type: "connect",
-      self_id: 10001,
-      time: 0,
-    }));
-
-    await waitFor(() => received);
-    expect(received.sub_type).toBe("connect");
-  });
-
   it("API 回执不误分发为消息事件", async () => {
-    const { server, napcat, incoming } = await startServer();
-
     let messageCount = 0;
-    server.setHandlers({
+    const { client, napcat, incoming } = await startServer({
       onMessage: () => { messageCount++; },
-      onMetaEvent: () => {},
     });
 
-    const p = server.client.send("some_action", {});
+    const p = client.send("some_action", {});
     const call = await waitFor(() => incoming[0]);
     reply(napcat, call, { retcode: 0 });
     await p;
@@ -257,13 +247,25 @@ describe("事件分发", () => {
 
 describe("鉴权", () => {
   it("无 token 或错误 token 时拒绝连接", async () => {
-    const server = await startOneBotServer({ listen: "127.0.0.1:0", token: "test-token" });
+    const client = new OneBotApiClient();
+    const server = new OneBotWsServer(
+      { path: "/onebot", token: "test-token" },
+      NOOP_HANDLERS,
+      client,
+    );
     servers.push(server);
 
+    const app = new Elysia();
+    server.register(app);
+    apps.push(app);
+    app.listen({ hostname: "127.0.0.1", port: 0 });
+    const port = app.server?.port ?? 0;
+
+    // 鉴权失败 → open 后服务端立即 close；客户端以 close 事件收尾
     let failed = false;
     await new Promise<void>((resolve) => {
-      const ws = new WebSocket(`ws://127.0.0.1:${server.port}`);
-      ws.onopen = () => { failed = false; resolve(); };
+      const ws = new WebSocket(`ws://127.0.0.1:${port}/onebot`);
+      ws.onopen = () => {};
       ws.onerror = () => { failed = true; resolve(); };
       ws.onclose = () => { failed = true; resolve(); };
     });

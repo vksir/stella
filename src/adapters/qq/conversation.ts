@@ -3,11 +3,13 @@
  *
  * 职责：
  * - 触发（Trigger）：消息 → 身份解析 → 会话 → 触发注记 → prompt → 回复收集 → 出站解析 → 发送
- * - 倾听（Listening）：未触发消息格式化入库；断连补偿回填消息空洞
+ * - 倾听（Listening）：未触发消息格式化入库
  * - 触发注记注入（before_agent_start 扩展，当轮有效）
  *
  * 传输/协议在 onebot.ts；pi SDK（AgentSession、扩展机制）只出现在本模块实现中。
- * 业务编排经 OneBotClient interface 与传输层交互，不接触 Bun 类型。
+ * 业务编排依赖 OneBotApiClient 具体类（生产唯一实现，不设接口）。
+ *
+ * 平台无关件（ReplyCollector / TriggerNoteBus）暂居本模块，第二平台落地时上提共享。
  */
 
 import type {
@@ -15,24 +17,19 @@ import type {
   ExtensionAPI,
   BeforeAgentStartEvent,
   BeforeAgentStartEventResult,
+  AgentSession,
+  AgentSessionEvent,
 } from "@earendil-works/pi-coding-agent";
-import type { AgentSession } from "@earendil-works/pi-coding-agent";
-import type { Segment, SenderInfo, OneBotMessageEvent, OneBotMetaEvent } from "./types";
+import type { OneBotMessageEvent } from "./types";
 import { SELF_NAME } from "./types";
 import { segmentsToText, formatGroupMessage, parseOutbound } from "./format";
 import { isTrigger, triggerNoteText } from "./trigger";
 import type { OneBotClient } from "./onebot";
 import type { IdentityResolver } from "../../identity";
 import type { SessionRegistry } from "../../sessions-registry";
-import type { SessionStore } from "../../stores/session";
 import type { UserRow } from "../../stores/user";
 
 // ---- 接口 ----
-
-export interface Conversation {
-  onMessage(event: OneBotMessageEvent): Promise<void>;
-  onMetaEvent(event: OneBotMetaEvent): Promise<void>;
-}
 
 /**
  * 回合驱动所需的应用依赖（窄接口：仅业务路径实际用到的部分）。
@@ -42,31 +39,40 @@ export interface ConversationDeps {
   identity: Pick<IdentityResolver, "resolve">;
   sessions: Pick<SessionRegistry, "getOrCreate">;
   setSessionUser: (sessionId: string, user: UserRow) => void;
-  sessionStore: Pick<SessionStore, "get">;
 }
-
-const CATCHUP_COUNT = 20;
 
 // ---- 触发注记（before_agent_start 扩展） ----
 
 /**
- * 待注入的触发注记（按 sessionId 索引）。
- * 模块级：扩展在 bootstrap 时注册，早于会话创建；进程内仅一个会话驱动。
+ * 触发注记中转：会话驱动写入、扩展读取（读取即删，当轮有效）。
+ * 实例由组合根（index.ts）创建并注入两处，替代模块级状态。
  */
-const pendingTriggerNotes = new Map<string, string>();
+export class TriggerNoteBus {
+  private notes = new Map<string, string>();
+
+  /** 写入当轮触发注记（按 sessionId 索引）。 */
+  set(sessionId: string, note: string): void {
+    this.notes.set(sessionId, note);
+  }
+
+  /** 取出注记（读取即删，当轮有效）。 */
+  take(sessionId: string): string | undefined {
+    const note = this.notes.get(sessionId);
+    if (note !== undefined) this.notes.delete(sessionId);
+    return note;
+  }
+}
 
 /**
  * 创建触发注记扩展工厂。
  * 在 before_agent_start 事件中注入触发注记（当轮有效，不入库）。
  */
-export function createTriggerNoteExtension(): ExtensionFactory {
+export function createTriggerNoteExtension(bus: TriggerNoteBus): ExtensionFactory {
   return (pi: ExtensionAPI) => {
     pi.on("before_agent_start", (event: BeforeAgentStartEvent, ctx) => {
       const sessionId = ctx.sessionManager.getSessionId();
-      const note = pendingTriggerNotes.get(sessionId);
+      const note = bus.take(sessionId);
       if (!note) return;
-
-      pendingTriggerNotes.delete(sessionId);
 
       // 将触发注记追加到系统提示词末尾（当轮有效）
       const result: BeforeAgentStartEventResult = {
@@ -77,89 +83,125 @@ export function createTriggerNoteExtension(): ExtensionFactory {
   };
 }
 
+// ---- 回复收集 ----
+
+/**
+ * 订阅会话事件流，累积 text_delta，agent_end 时交付完整回复文本。
+ * 状态（累积文本、退订句柄）归本对象，dispose 显式退订防泄漏。
+ */
+export class ReplyCollector {
+  private fullText = "";
+  private unsub: (() => void) | null = null;
+
+  constructor(private session: AgentSession) {}
+
+  /** 开始收集；返回在 agent_end 时 resolve 完整文本的 Promise。 */
+  collect(): Promise<string> {
+    return new Promise<string>((resolve) => {
+      this.unsub = this.session.subscribe((event: AgentSessionEvent) => {
+        if (event.type === "message_update" && event.assistantMessageEvent?.type === "text_delta") {
+          this.fullText += event.assistantMessageEvent.delta;
+        }
+        if (event.type === "agent_end") {
+          this.dispose();
+          resolve(this.fullText);
+        }
+      });
+    });
+  }
+
+  /** 退订事件流。 */
+  dispose(): void {
+    this.unsub?.();
+    this.unsub = null;
+  }
+}
+
 // ---- 会话驱动 ----
 
 /**
- * 创建会话回合驱动：把 OneBot 事件编排为 Stella 的一轮对话。
+ * 会话回合驱动：把 OneBot 事件编排为 Stella 的一轮对话。
+ * 群聊/私聊差异（chatKey、触发判断、注记、格式化、发送目标）留在分支内，
+ * 回合骨架（getSession / runTurn / ingest）收敛为本类私有方法。
  */
-export function createConversation(deps: ConversationDeps, client: OneBotClient): Conversation {
-  /**
-   * 已知活跃会话的 chatKey 集合，用于断连补偿。
-   * 归本模块持有（而非连接层）：WS 重连后依然存活，补偿才能真正回填消息空洞。
-   */
-  const knownChats = new Set<string>();
-
-  // ---- 消息处理 ----
+export class QQConversation {
+  constructor(
+    private deps: ConversationDeps,
+    private client: OneBotClient,
+    private noteBus: TriggerNoteBus,
+  ) {}
 
   /**
    * 处理单条 OneBot message 事件。
    */
-  async function handleMessage(data: OneBotMessageEvent): Promise<void> {
+  async onMessage(data: OneBotMessageEvent): Promise<void> {
     const selfId = String(data.self_id);
     const { message_type } = data;
-
-    const triggered = isTrigger(message_type, data.message, selfId);
 
     if (message_type === "group") {
       const groupId = data.group_id!;
       const chatKey = `qq:group:${groupId}`;
-      knownChats.add(chatKey);
+      const session = await this.getSession(chatKey, data.user_id);
 
-      if (triggered) {
+      if (isTrigger("group", data.message, selfId)) {
         // ---- 群聊触发 ----
-        const user = deps.identity.resolve("qq", String(data.user_id));
-        const session = await deps.sessions.getOrCreate("qq", chatKey);
-        deps.setSessionUser(session.sessionId, user);
-
-        // 设置触发注记
-        const note = triggerNoteText("group", data.sender, data.message_id, data.user_id);
-        pendingTriggerNotes.set(session.sessionId, note);
-
-        // 格式化消息
+        this.noteBus.set(
+          session.sessionId,
+          triggerNoteText("group", data.sender, data.message_id, data.user_id),
+        );
         const formatted = formatGroupMessage(
           data.message, data.sender, data.message_id, data.time, data.user_id,
         );
-
-        await processPromptAndReply(session, formatted, "group", groupId, data.user_id);
+        await this.runTurn(session, formatted, "group", groupId, data.user_id);
       } else {
         // ---- 群聊被动消息（仅入库） ----
-        const session = await deps.sessions.getOrCreate("qq", chatKey);
-        await injectPassiveMessage(
-          session, data.message, data.sender, data.message_id, data.time, data.user_id,
+        await this.ingest(
+          session,
+          formatGroupMessage(data.message, data.sender, data.message_id, data.time, data.user_id),
         );
       }
     } else {
-      // ---- 私聊 ----
+      // ---- 私聊（总是触发） ----
       const chatKey = `qq:private:${data.user_id}`;
-      knownChats.add(chatKey);
+      const session = await this.getSession(chatKey, data.user_id);
 
-      const user = deps.identity.resolve("qq", String(data.user_id));
-      const session = await deps.sessions.getOrCreate("qq", chatKey);
-      deps.setSessionUser(session.sessionId, user);
-
-      // 私聊触发注记
-      const note = triggerNoteText("private", data.sender, data.message_id, data.user_id);
-      pendingTriggerNotes.set(session.sessionId, note);
+      this.noteBus.set(
+        session.sessionId,
+        triggerNoteText("private", data.sender, data.message_id, data.user_id),
+      );
 
       // 私聊：纯文本（不标注说话人）
       const text = segmentsToText(data.message, SELF_NAME);
-
-      await processPromptAndReply(session, text, "private", undefined, data.user_id);
+      await this.runTurn(session, text, "private", undefined, data.user_id);
     }
   }
 
+  // ---- 私有：会话 ----
+
   /**
-   * 调用 session.prompt 并收集模型回复 → 解析 → 发送。
+   * 身份解析 → 取会话 → 绑定当前说话人（三步收敛为一处）。
    */
-  async function processPromptAndReply(
+  private async getSession(chatKey: string, userId: number): Promise<AgentSession> {
+    const user = this.deps.identity.resolve("qq", String(userId));
+    const session = await this.deps.sessions.getOrCreate("qq", chatKey);
+    this.deps.setSessionUser(session.sessionId, user);
+    return session;
+  }
+
+  // ---- 私有：回合 ----
+
+  /**
+   * 回合骨架：先挂起回复收集器 → 触发模型 → 收集完整回复 → 解析出站 → 发送。
+   */
+  private async runTurn(
     session: AgentSession,
     promptText: string,
     chatType: "group" | "private",
     groupId: number | undefined,
     senderUserId: number,
   ): Promise<void> {
-    // 开始收集回复
-    const replyPromise = collectReply(session);
+    // 先订阅再触发：text_delta 在 prompt 返回前就开始发射
+    const replyPromise = new ReplyCollector(session).collect();
 
     try {
       await session.prompt(promptText);
@@ -178,174 +220,25 @@ export function createConversation(deps: ConversationDeps, client: OneBotClient)
 
     // 发送
     if (chatType === "group" && groupId) {
-      await client.sendGroupMessage(groupId, segments);
+      await this.client.sendGroupMessage(groupId, segments);
     } else {
-      await client.sendPrivateMessage(senderUserId, segments);
+      await this.client.sendPrivateMessage(senderUserId, segments);
     }
   }
 
-  /**
-   * 订阅会话事件流，收集 text_delta 累积完整回复文本。
-   * 返回 Promise，在 agent_end 时 resolve 完整文本。
-   */
-  function collectReply(session: AgentSession): Promise<string> {
-    return new Promise<string>((resolve) => {
-      let fullText = "";
-      const unsub = session.subscribe((event: any) => {
-        if (event.type === "message_update" && event.assistantMessageEvent?.type === "text_delta") {
-          fullText += event.assistantMessageEvent.delta;
-        }
-        if (event.type === "agent_end") {
-          unsub();
-          resolve(fullText);
-        }
-      });
-    });
-  }
-
-  // ---- 倾听（被动入库） ----
+  // ---- 私有：倾听（被动入库） ----
 
   /**
-   * 入库一条被动消息文本（sendCustomMessage 的唯一出口）。
+   * 入库一条消息文本（sendCustomMessage 的唯一出口）。
    */
-  function ingest(session: AgentSession, text: string): void {
+  private async ingest(session: AgentSession, text: string): Promise<void> {
     try {
-      (session as any).sendCustomMessage(text, { deliverAs: "nextTurn" });
+      await session.sendCustomMessage(
+        { customType: "qq.chat_message", content: text, display: true },
+        { deliverAs: "nextTurn" },
+      );
     } catch (err) {
       console.error("[QQ] 消息入库失败:", err);
     }
   }
-
-  /**
-   * 群聊被动消息（不触发回复）格式化后写入会话历史。
-   */
-  function injectPassiveMessage(
-    session: AgentSession,
-    segs: Segment[],
-    sender: SenderInfo,
-    messageId: number,
-    time: number,
-    userId: number,
-  ): void {
-    ingest(session, formatGroupMessage(segs, sender, messageId, time, userId));
-  }
-
-  /**
-   * 把历史消息按正序、过滤后逐条入库（断连补偿与实时倾听共用此路径）。
-   * 过滤：晚于 cutoff、post_type 为 message、跳过机器人自己。
-   */
-  async function ingestHistory(
-    chatKey: string,
-    messages: any[],
-    cutoff: number,
-    format: (msg: any) => string,
-  ): Promise<void> {
-    const session = await deps.sessions.getOrCreate("qq", chatKey);
-
-    const sorted = [...messages].sort((a, b) => (a.time ?? 0) - (b.time ?? 0));
-
-    for (const msg of sorted) {
-      if ((msg.time ?? 0) <= cutoff) continue;
-      if (msg.post_type !== "message") continue;
-      if (String(msg.user_id) === client.selfId) continue;
-
-      ingest(session, format(msg));
-    }
-  }
-
-  /** 历史消息段数组规范化（兼容 message 为字符串的旧格式）。 */
-  function normalizeSegments(msg: any): Segment[] {
-    return Array.isArray(msg.message)
-      ? msg.message
-      : [{ type: "text", data: { text: String(msg.message ?? "") } }];
-  }
-
-  /** 群聊历史消息 → 入库文本（格式与实时消息一致）。 */
-  function formatGroupHistoryMessage(msg: any): string {
-    const msgTime = msg.time ?? Math.floor(Date.now() / 1000);
-    const sender: SenderInfo = {
-      nickname: msg.sender?.nickname ?? "未知",
-      card: msg.sender?.card,
-    };
-    return formatGroupMessage(
-      normalizeSegments(msg), sender, msg.message_id ?? 0, msgTime, msg.user_id ?? 0,
-    );
-  }
-
-  /** 私聊历史消息 → 入库文本（纯文本，不标注说话人）。 */
-  function formatPrivateHistoryMessage(msg: any): string {
-    return segmentsToText(normalizeSegments(msg), SELF_NAME);
-  }
-
-  // ---- 元事件处理 ----
-
-  async function handleMetaEvent(data: OneBotMetaEvent): Promise<void> {
-    if (data.meta_event_type === "lifecycle" && data.sub_type === "connect") {
-      // 断连补偿：拉取消息空洞
-      await catchupMissedMessages();
-    }
-  }
-
-  /**
-   * 断连补偿：对每个已知活跃会话拉取历史消息。
-   */
-  async function catchupMissedMessages(): Promise<void> {
-    for (const chatKey of knownChats) {
-      try {
-        if (chatKey.startsWith("qq:group:")) {
-          const groupId = parseInt(chatKey.slice("qq:group:".length), 10);
-          await catchupGroupMessages(groupId, chatKey);
-        } else if (chatKey.startsWith("qq:private:")) {
-          const userId = parseInt(chatKey.slice("qq:private:".length), 10);
-          await catchupPrivateMessages(userId, chatKey);
-        }
-      } catch (err) {
-        console.error(`[QQ] 断连补偿失败 (${chatKey}):`, err);
-      }
-    }
-  }
-
-  /**
-   * 拉取群聊历史并回填。群/私聊差异收敛为「API action + 格式化函数」两个参数。
-   */
-  async function catchupGroupMessages(
-    groupId: number,
-    chatKey: string,
-  ): Promise<void> {
-    const resp = await client.send("get_group_msg_history", {
-      group_id: groupId,
-      count: CATCHUP_COUNT,
-    });
-
-    if (resp.retcode !== 0 || !resp.data) return;
-
-    const messages = (resp.data as any).messages as any[] | undefined;
-    if (!messages || messages.length === 0) return;
-
-    const row = deps.sessionStore.get("qq", chatKey);
-    await ingestHistory(chatKey, messages, row ? row.last_active : 0, formatGroupHistoryMessage);
-  }
-
-  async function catchupPrivateMessages(
-    userId: number,
-    chatKey: string,
-  ): Promise<void> {
-    const resp = await client.send("get_friend_msg_history", {
-      user_id: userId,
-      count: CATCHUP_COUNT,
-    });
-
-    if (resp.retcode !== 0 || !resp.data) return;
-
-    const messages = (resp.data as any).messages as any[] | undefined;
-    if (!messages || messages.length === 0) return;
-
-    const row = deps.sessionStore.get("qq", chatKey);
-    await ingestHistory(chatKey, messages, row ? row.last_active : 0, formatPrivateHistoryMessage);
-  }
-
-  return {
-    onMessage: handleMessage,
-    onMetaEvent: handleMetaEvent,
-  };
 }

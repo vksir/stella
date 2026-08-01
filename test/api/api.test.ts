@@ -11,7 +11,7 @@ import { createMemoryStore, type MemoryStore } from "../../src/stores/memory";
 import { createIdentityResolver } from "../../src/identity";
 import { SessionRegistry, type ISessionFactory, type SessionCreateResult } from "../../src/sessions-registry";
 import { createMemoryTools } from "../../src/tools/memory";
-import { startApiServer } from "../../src/api/api";
+import { createApiApp, startApiServer } from "../../src/api/api";
 import type { AppContext } from "../../src/index";
 import type { StellaConfig } from "../../src/config";
 import type { AgentSession, AgentSessionEvent } from "@earendil-works/pi-coding-agent";
@@ -140,7 +140,7 @@ beforeAll(async () => {
 
   testConfig = {
     owner: { qq: "99999", api_token: OWNER_TOKEN },
-    napcat: { listen: "0.0.0.0:8082", token: "x" },
+    napcat: { path: "/onebot", token: "x" },
     api: { listen: "127.0.0.1:0" },
     model: { provider: "test", name: "test" },
     paths: { data_dir: dataDir },
@@ -183,7 +183,8 @@ beforeAll(async () => {
     qqAdapter: null,
   } as AppContext;
 
-  const handle = await startApiServer(appCtx);
+  const apiApp = createApiApp(appCtx);
+  const handle = await startApiServer(apiApp, testConfig.api);
   appCtx.apiServer = handle;
   server = handle;
   serverUrl = `http://127.0.0.1:${handle.server.port}`;

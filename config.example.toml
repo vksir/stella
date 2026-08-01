@@ -6,7 +6,7 @@ qq = "123456789"              # 管理员 QQ 号
 api_token = "change-me"       # 管理员 API token（Bearer）
 
 [napcat]
-listen = "127.0.0.1:8082"     # 反向 WS 监听地址（Stella 为服务端）
+path = "/onebot"             # 反向 WS 挂载路径（与 API 共享端口，NapCat 连 ws://<api地址>/onebot）
 token = "change-me"           # 校验 NapCat 握手 Authorization: Bearer
 
 [api]
