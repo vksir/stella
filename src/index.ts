@@ -13,7 +13,8 @@ import { SessionRegistry } from "./sessions-registry";
 import { SessionFactory } from "./session-factory";
 import { createMemoryTools } from "./tools/memory";
 import { startApiServer, type ApiServerHandle } from "./api/api";
-import { startQQAdapter, createTriggerNoteExtension, type QQAdapterHandle } from "./adapters/qq/qq";
+import { startQQAdapter, type QQAdapterHandle } from "./adapters/qq/qq";
+import { createTriggerNoteExtension } from "./adapters/qq/conversation";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 
 /**
