@@ -1,0 +1,20 @@
+# Stella 配置示例，复制为 stella.toml 后填入真实值
+# 用法：stella -c stella.toml
+
+[server]
+listen = ":5810"
+ws_path = "/adapter/onebot"
+
+[model]
+provider = "openrouter"
+api_key = "xxx"
+model = "nvidia/nemotron-3-nano-30b-a3b:free"
+# temperature = 0.7
+# reasoning_effort = "medium"
+
+[log]
+level = "debug"
+file = "data/stella.log"
+
+[database]
+path = "data/stella.db"
