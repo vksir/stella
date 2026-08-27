@@ -7,9 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
-	_ "modernc.org/sqlite" // 注册 sqlite 驱动
-
 	"github.com/vksir/stella/internal/config"
+	_ "modernc.org/sqlite" // 注册 sqlite 驱动
 )
 
 // Open 打开 SQLite 数据库，并校验连接可用。
