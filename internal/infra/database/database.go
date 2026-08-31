@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/vksir/stella/internal/config"
+	"github.com/vksir/stella/internal/infra/config"
 	_ "modernc.org/sqlite" // 注册 sqlite 驱动
 )
 

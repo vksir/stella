@@ -8,7 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/vksir/stella/internal/config"
+	"github.com/vksir/stella/internal/infra/config"
 )
 
 // New 根据配置创建日志器，同时输出到标准错误和日志文件。
@@ -26,6 +26,14 @@ func New(cfg config.LogConfig) (*slog.Logger, error) {
 	opts := &slog.HandlerOptions{Level: level}
 	if level == slog.LevelDebug {
 		opts.AddSource = true
+		opts.ReplaceAttr = func(_ []string, attr slog.Attr) slog.Attr {
+			if attr.Key == slog.SourceKey {
+				source := *attr.Value.Any().(*slog.Source)
+				source.File = filepath.Base(source.File)
+				attr.Value = slog.AnyValue(&source)
+			}
+			return attr
+		}
 	}
 	return slog.New(slog.NewTextHandler(io.MultiWriter(os.Stderr, file), opts)), nil
 }

@@ -1,4 +1,3 @@
-// Stella 是 OneBot 聊天机器人。
 package main
 
 import (
@@ -15,12 +14,12 @@ func main() {
 
 	rootCmd := &cobra.Command{
 		Use:   "stella",
-		Short: "Stella 聊天机器人",
+		Short: "Stella Agent",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return app.Run(cfgPath)
 		},
 	}
-	rootCmd.Flags().StringVarP(&cfgPath, "config", "c", "stella.toml", "配置文件路径")
+	rootCmd.Flags().StringVarP(&cfgPath, "config", "c", "stella.toml", "config path")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)

@@ -21,7 +21,9 @@ dist/
 .docs
 .scratch
 docs/adr
-docs/agents
+docs/research
+docs/design
+docs/*.html
 CONTEXT.md
 
 # IDE

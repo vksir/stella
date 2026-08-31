@@ -5,8 +5,46 @@ import (
 	"testing"
 )
 
+func TestOrderedMapNilReceiver(t *testing.T) {
+	var m *OrderedMap[string, int]
+	m.Set("key", 1)
+	m.Delete("key")
+	m.MoveToEnd("key")
+	m.Clear()
+
+	if value, ok := m.Get("key"); value != 0 || ok {
+		t.Fatalf("Get() = (%d, %v), want (0, false)", value, ok)
+	}
+	if m.Contains("key") || m.Len() != 0 {
+		t.Fatalf("nil map is not empty: contains=%v len=%d", m.Contains("key"), m.Len())
+	}
+	if keys := m.Keys(); keys != nil {
+		t.Fatalf("Keys() = %v, want nil", keys)
+	}
+	if values := m.Values(); values != nil {
+		t.Fatalf("Values() = %v, want nil", values)
+	}
+	if cloned := m.Clone(); cloned != nil {
+		t.Fatalf("Clone() = %v, want nil", cloned)
+	}
+	for range m.All() {
+		t.Fatal("All() yielded an entry for a nil map")
+	}
+}
+
+func TestOrderedMapZeroValue(t *testing.T) {
+	var m OrderedMap[string, int]
+	m.Set("key", 1)
+	if value, ok := m.Get("key"); value != 1 || !ok {
+		t.Fatalf("Get() = (%d, %v), want (1, true)", value, ok)
+	}
+	if m.Len() != 1 || !reflect.DeepEqual(m.Keys(), []string{"key"}) {
+		t.Fatalf("zero-value map insertion failed: len=%d keys=%v", m.Len(), m.Keys())
+	}
+}
+
 func TestOrderedMap(t *testing.T) {
-	m := New[string, int]()
+	m := NewOrderedMap[string, int]()
 
 	m.Set("b", 2)
 	m.Set("a", 1)
@@ -33,7 +71,7 @@ func TestOrderedMap(t *testing.T) {
 }
 
 func TestOrderedMapCompact(t *testing.T) {
-	m := New[int, int]()
+	m := NewOrderedMap[int, int]()
 	for i := range 10 {
 		m.Set(i, i)
 	}
@@ -51,8 +89,26 @@ func TestOrderedMapCompact(t *testing.T) {
 	}
 }
 
+func TestMoveToEndSkipsDeletedEntries(t *testing.T) {
+	m := NewOrderedMap[string, int]()
+	m.Set("a", 1)
+	m.Set("b", 2)
+	m.Delete("b")
+	m.MoveToEnd("a")
+	if m.Len() != 1 || m.Contains("") {
+		t.Fatalf("moving across a deleted entry corrupted the index: len=%d keys=%v", m.Len(), m.Keys())
+	}
+	m.Set("", 3)
+	m.Set("c", 4)
+	m.Delete("c")
+	m.MoveToEnd("a")
+	if value, ok := m.Get(""); !ok || value != 3 {
+		t.Fatalf("zero key was overwritten by a deleted entry: value=%d ok=%v", value, ok)
+	}
+}
+
 func TestOrderedMapAll(t *testing.T) {
-	m := New[string, int]()
+	m := NewOrderedMap[string, int]()
 	m.Set("x", 1)
 	m.Set("y", 2)
 	var got []string

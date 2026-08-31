@@ -1,20 +1,33 @@
-# Stella 配置示例，复制为 stella.toml 后填入真实值
-# 用法：stella -c stella.toml
-
 [server]
 listen = ":5810"
-ws_path = "/adapter/onebot"
+
+[onebot]
+url = "ws://127.0.0.1:3001"
+# access_token = "xxx"
 
 [model]
-provider = "openrouter"
+default_provider = "openrouter"
+default_model = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
+# default_reasoning_effort = "medium"
+# default_temperature = 0.7
+
+[model.provider.openrouter]
 api_key = "xxx"
+
+[[model.provider.openrouter.models]]
 model = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
-# temperature = 0.7
 # reasoning_effort = "medium"
+# temperature = 0.7
+# supports_images = true # 仅支持视觉输入的模型启用
 
 [log]
 level = "debug"
 file = "data/stella.log"
 
+[store]
+# memory：仅内存；database：持久化到 SQLite。省略时默认 memory。
+type = "memory"
+
 [database]
+# 仅 store.type = "database" 时使用，启动时自动建表。
 path = "data/stella.db"

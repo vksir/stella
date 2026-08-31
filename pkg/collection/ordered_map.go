@@ -2,6 +2,8 @@ package collection
 
 import "iter"
 
+// OrderedMap 按插入顺序保存键值，零值可用。
+// nil 接收者视为空映射，写操作无效。
 type OrderedMap[K comparable, V any] struct {
 	index   map[K]int
 	entries []entry[K, V]
@@ -14,11 +16,17 @@ type entry[K comparable, V any] struct {
 	live bool
 }
 
-func New[K comparable, V any]() *OrderedMap[K, V] {
+func NewOrderedMap[K comparable, V any]() *OrderedMap[K, V] {
 	return &OrderedMap[K, V]{index: make(map[K]int)}
 }
 
 func (m *OrderedMap[K, V]) Set(key K, val V) {
+	if m == nil {
+		return
+	}
+	if m.index == nil {
+		m.index = make(map[K]int)
+	}
 	if i, ok := m.index[key]; ok {
 		m.entries[i].val = val
 		return
@@ -28,6 +36,10 @@ func (m *OrderedMap[K, V]) Set(key K, val V) {
 }
 
 func (m *OrderedMap[K, V]) Get(key K) (V, bool) {
+	if m == nil {
+		var zero V
+		return zero, false
+	}
 	i, ok := m.index[key]
 	if !ok {
 		var zero V
@@ -37,11 +49,17 @@ func (m *OrderedMap[K, V]) Get(key K) (V, bool) {
 }
 
 func (m *OrderedMap[K, V]) Contains(key K) bool {
+	if m == nil {
+		return false
+	}
 	_, ok := m.index[key]
 	return ok
 }
 
 func (m *OrderedMap[K, V]) Delete(key K) {
+	if m == nil {
+		return
+	}
 	i, ok := m.index[key]
 	if !ok {
 		return
@@ -55,10 +73,16 @@ func (m *OrderedMap[K, V]) Delete(key K) {
 }
 
 func (m *OrderedMap[K, V]) Len() int {
+	if m == nil {
+		return 0
+	}
 	return len(m.index)
 }
 
 func (m *OrderedMap[K, V]) Keys() []K {
+	if m == nil {
+		return nil
+	}
 	keys := make([]K, 0, len(m.index))
 	for _, e := range m.entries {
 		if e.live {
@@ -69,6 +93,9 @@ func (m *OrderedMap[K, V]) Keys() []K {
 }
 
 func (m *OrderedMap[K, V]) Values() []V {
+	if m == nil {
+		return nil
+	}
 	vals := make([]V, 0, len(m.index))
 	for _, e := range m.entries {
 		if e.live {
@@ -80,6 +107,9 @@ func (m *OrderedMap[K, V]) Values() []V {
 
 func (m *OrderedMap[K, V]) All() iter.Seq2[K, V] {
 	return func(yield func(K, V) bool) {
+		if m == nil {
+			return
+		}
 		for _, e := range m.entries {
 			if e.live && !yield(e.key, e.val) {
 				return
@@ -88,7 +118,45 @@ func (m *OrderedMap[K, V]) All() iter.Seq2[K, V] {
 	}
 }
 
+// Clone 返回浅拷贝，nil 接收者返回 nil。
+func (m *OrderedMap[K, V]) Clone() *OrderedMap[K, V] {
+	if m == nil {
+		return nil
+	}
+	c := &OrderedMap[K, V]{
+		index:   make(map[K]int, len(m.index)),
+		entries: append([]entry[K, V](nil), m.entries...),
+		deleted: m.deleted,
+	}
+	for k, v := range m.index {
+		c.index[k] = v
+	}
+	return c
+}
+
+// MoveToEnd TODO: 性能
+func (m *OrderedMap[K, V]) MoveToEnd(key K) {
+	if m == nil {
+		return
+	}
+	i, ok := m.index[key]
+	if !ok {
+		return
+	}
+	e := m.entries[i]
+	copy(m.entries[i:], m.entries[i+1:])
+	m.entries[len(m.entries)-1] = e
+	for j := i; j < len(m.entries); j++ {
+		if m.entries[j].live {
+			m.index[m.entries[j].key] = j
+		}
+	}
+}
+
 func (m *OrderedMap[K, V]) Clear() {
+	if m == nil {
+		return
+	}
 	clear(m.index)
 	m.entries = m.entries[:0]
 	m.deleted = 0
