@@ -3,18 +3,18 @@ package agent
 type EventType string
 
 const (
-	EventTextStart     EventType = "text_start"
-	EventTextDelta     EventType = "text_delta"
-	EventTextEnd       EventType = "text_end"
-	EventThinkingStart EventType = "thinking_start"
-	EventThinkingDelta EventType = "thinking_delta"
-	EventThinkingEnd   EventType = "thinking_end"
-	EventToolCallStart EventType = "tool_call_start"
-	EventToolCallDelta EventType = "tool_call_delta"
-	EventToolCallEnd   EventType = "tool_call_end"
-	EventFinish        EventType = "finish"
-	EventDone          EventType = "done"
-	EventError         EventType = "error"
+	EventTextStart      EventType = "text_start"
+	EventTextDelta      EventType = "text_delta"
+	EventTextEnd        EventType = "text_end"
+	EventReasoningStart EventType = "reasoning_start"
+	EventReasoningDelta EventType = "reasoning_delta"
+	EventReasoningEnd   EventType = "reasoning_end"
+	EventToolCallStart  EventType = "tool_call_start"
+	EventToolCallDelta  EventType = "tool_call_delta"
+	EventToolCallEnd    EventType = "tool_call_end"
+	EventFinish         EventType = "finish"
+	EventDone           EventType = "done"
+	EventError          EventType = "error"
 )
 
 type FinishReason string
@@ -41,11 +41,11 @@ type Usage struct {
 }
 
 type Event struct {
-	Type          EventType
-	TextDelta     string
-	ThinkingDelta string
-	ToolCallDelta ToolCallDelta
-	Finish        FinishReason
-	Usage         Usage
-	Error         string
+	Type           EventType
+	TextDelta      string
+	ReasoningDelta string
+	ToolCallDelta  ToolCallDelta
+	Finish         FinishReason
+	Usage          Usage
+	Error          string
 }

@@ -3,14 +3,35 @@
 
 [server]
 listen = ":5810"
-ws_path = "/adapter/onebot"
+ws_path = "/ws/onebot"
+
+[onebot]
+# napcat 反向 WebSocket 的鉴权 token，napcat 侧需配置相同值；留空则不校验
+# access_token = "xxx"
+# 系统提示词，留空则使用内置默认
+# system_prompt = "..."
 
 [model]
-provider = "openrouter"
+default_provider = "openrouter"
+default_model = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
+# 全局生成参数，作用于所有模型，模型级可覆盖
+# temperature = 0.7
+# reasoning_effort = "medium"
+
+[model.provider.openrouter]
 api_key = "xxx"
+
+[[model.provider.openrouter.models]]
 model = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
 # temperature = 0.7
 # reasoning_effort = "medium"
+
+# 可选：更多 provider，每个 provider 一个 api_key
+# [model.provider.deepseek]
+# api_key = "xxx"
+#
+# [[model.provider.deepseek.models]]
+# model = "deepseek-chat"
 
 [log]
 level = "debug"

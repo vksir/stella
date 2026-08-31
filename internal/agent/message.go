@@ -24,8 +24,20 @@ type Message struct {
 	Role       Role         `json:"role"`
 	Name       string       `json:"name,omitempty"`
 	Content    string       `json:"content"`
-	Thinking   string       `json:"thinking,omitempty"`
+	Reasoning  string       `json:"reasoning,omitempty"`
 	ToolCalls  []ToolCall   `json:"tool_calls,omitempty"`
 	ToolCallID string       `json:"tool_call_id,omitempty"`
 	Finish     FinishReason `json:"finish,omitempty"`
+}
+
+func MessagesClone(messages []Message) []Message {
+	if messages == nil {
+		return nil
+	}
+	cloned := make([]Message, len(messages))
+	for i, message := range messages {
+		cloned[i] = message
+		cloned[i].ToolCalls = append([]ToolCall(nil), message.ToolCalls...)
+	}
+	return cloned
 }
