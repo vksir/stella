@@ -3,6 +3,7 @@ package agent
 type EventType string
 
 const (
+	// LLM Stream Event
 	EventTextStart      EventType = "text_start"
 	EventTextDelta      EventType = "text_delta"
 	EventTextEnd        EventType = "text_end"
@@ -12,10 +13,12 @@ const (
 	EventToolCallStart  EventType = "tool_call_start"
 	EventToolCallDelta  EventType = "tool_call_delta"
 	EventToolCallEnd    EventType = "tool_call_end"
-	EventToolExecution  EventType = "tool_execution"
 	EventFinish         EventType = "finish"
 	EventDone           EventType = "done"
 	EventError          EventType = "error"
+
+	// Tool Call Event
+	EventToolExecution EventType = "tool_execution"
 )
 
 type FinishReason string

@@ -4,10 +4,6 @@ import "log/slog"
 
 type Option func(*Config)
 
-func WithSystemPrompt(prompt string) Option {
-	return func(c *Config) { c.systemPrompt = prompt }
-}
-
 func WithModel(model string) Option {
 	return func(c *Config) { c.model = model }
 }

@@ -49,15 +49,14 @@ type Agent struct {
 	running bool
 }
 
-const defaultSystemPrompt = "You are a versatile assistant named Stella. You help users with a wide range of questions and tasks, using available tools when needed to provide accurate, clear, and useful results."
-
 func New(name string, opts ...Option) (*Agent, error) {
 	cfg := Config{
 		name:         name,
-		systemPrompt: defaultSystemPrompt,
+		systemPrompt: agentPrompt,
 		tools:        collection.NewOrderedMap[string, Tool](),
 		dynTools:     collection.NewOrderedMap[string, DynTool](),
 		log:          slog.Default(),
+		onEvent:      func(ctx context.Context, event Event) {},
 		maxTurn:      defaultMaxTurn,
 	}
 	for _, opt := range opts {
@@ -215,18 +214,16 @@ func (a *Agent) executeTools(ctx context.Context, toolCalls []ToolCall) []Messag
 			}
 
 			results[i] = result
-			if a.onEvent != nil {
-				a.onEvent(ctx, Event{
-					Type: EventToolExecution,
-					ToolCallResult: ToolCallResult{
-						Index:   i,
-						ID:      call.ID,
-						Name:    call.Name,
-						Success: err == nil,
-						Content: result.Content,
-					},
-				})
-			}
+			a.onEvent(ctx, Event{
+				Type: EventToolExecution,
+				ToolCallResult: ToolCallResult{
+					Index:   i,
+					ID:      call.ID,
+					Name:    call.Name,
+					Success: err == nil,
+					Content: result.Content,
+				},
+			})
 		})
 	}
 	wg.Wait()
@@ -264,7 +261,7 @@ func (a *Agent) buildSystemPrompt() string {
 	}
 
 	if a.dynTools.Len() > 0 {
-		prompt.WriteString("Extension tools are accessed through dyn. Available extension tools:\n")
+		prompt.WriteString("Dynamic tools are accessed through dyn. Available dynamic tools:\n")
 		for name, tool := range a.dyn.tools.All() {
 			prompt.WriteString("- ")
 			prompt.WriteString(name)
@@ -299,9 +296,7 @@ func newMessageBuilder(onEvent OnEvent) *messageBuilder {
 }
 
 func (m *messageBuilder) onEvent(ctx context.Context, event Event) {
-	if m.innerOnEvent != nil {
-		m.innerOnEvent(ctx, event)
-	}
+	m.innerOnEvent(ctx, event)
 
 	switch event.Type {
 	case EventTextDelta:
