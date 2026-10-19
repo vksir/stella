@@ -9,10 +9,10 @@ import (
 )
 
 type dynGateway struct {
-	tools *collection.OrderedMap[string, DynTool]
+	tools *collection.OrderedMap[string, Tool]
 }
 
-func newDynGateway(tools *collection.OrderedMap[string, DynTool]) *dynGateway {
+func newDynGateway(tools *collection.OrderedMap[string, Tool]) *dynGateway {
 	return &dynGateway{tools: tools}
 }
 
@@ -21,7 +21,11 @@ func (t *dynGateway) Name() string {
 }
 
 func (t *dynGateway) Description() string {
-	return "Inspect and execute extension tools listed in the system prompt catalog. Use tool_show to retrieve a tool's full description and parameter schema; omit arguments. Use tool_exec to execute a tool with arguments matching its schema; use {} for tools with no parameters. If the definition is already available in context, you may execute the tool directly. Do not guess parameters."
+	return "Inspect and execute dynamic tools listed in the system prompt catalog. Use tool_show to retrieve a tool's full description and parameter schema; omit arguments. Use tool_exec to execute a tool with arguments matching its schema; use {} for tools with no parameters. If the definition is already available in context, you may execute the tool directly. Do not guess parameters."
+}
+
+func (t *dynGateway) Summary() string {
+	return "Show or execute dynamic tools listed in the system prompt catalog."
 }
 
 func (t *dynGateway) Schema() map[string]any {
@@ -35,7 +39,7 @@ func (t *dynGateway) Schema() map[string]any {
 			},
 			"name": map[string]any{
 				"type":        "string",
-				"description": "The exact extension tool name from the system prompt catalog.",
+				"description": "The exact dynamic tool name from the system prompt catalog.",
 			},
 			"arguments": map[string]any{
 				"type":                 "object",
@@ -83,7 +87,7 @@ func (t *dynGateway) toolShow(name string) (Content, error) {
 		Parameters: tool.Schema(),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("extension tool %q encode definition failed: %w", name, err)
+		return nil, fmt.Errorf("dynamic tool %q encode definition failed: %w", name, err)
 	}
 	return TextContent(string(result)), nil
 }
@@ -98,15 +102,15 @@ func (t *dynGateway) toolExec(ctx context.Context, name string, arguments json.R
 	}
 	result, err := tool.Execute(ctx, string(arguments))
 	if err != nil {
-		return nil, fmt.Errorf("extension tool %q exec failed: %w", name, err)
+		return nil, fmt.Errorf("dynamic tool %q exec failed: %w", name, err)
 	}
 	return result, nil
 }
 
-func (t *dynGateway) toolLookup(name string) (DynTool, error) {
+func (t *dynGateway) toolLookup(name string) (Tool, error) {
 	tool, ok := t.tools.Get(name)
 	if !ok {
-		return nil, fmt.Errorf("extension tool %q not found", name)
+		return nil, fmt.Errorf("dynamic tool %q not found", name)
 	}
 	return tool, nil
 }

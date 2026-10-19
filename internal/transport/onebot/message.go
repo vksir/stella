@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"strconv"
 	"strings"
+
+	"github.com/vksir/stella/internal/core/agent"
 )
 
 // 消息类型。
@@ -86,4 +88,18 @@ func buildSendMsg(messageType string, userID, groupID int64, echo, text string) 
 		params.UserID = userID
 	}
 	return json.Marshal(apiRequest{Action: "send_msg", Params: params, Echo: echo})
+}
+
+// formatReply 渲染回复：文本在前，图片以 base64 CQ 码附加在后。
+func formatReply(content agent.Content) string {
+	var b strings.Builder
+	b.WriteString(content.Text())
+	for _, part := range content {
+		if part.Type == "image" && part.Data != "" {
+			b.WriteString("\n[CQ:image,file=base64://")
+			b.WriteString(part.Data)
+			b.WriteString("]")
+		}
+	}
+	return strings.TrimPrefix(b.String(), "\n")
 }

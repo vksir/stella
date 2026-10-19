@@ -5,6 +5,7 @@
 - 面向对象设计/编程，遵循 SOLID 原则
 - 若无必要，勿增实体：代码保持极简，减少非必要抽象，禁止擅自新增测试用例
 - 遵循业界通用设计方案，若需使用非标方案，必须获得用户许可
+- 文档有可能过时，以用户最新要求为准
 
 ### 开发规范
 
@@ -24,4 +25,4 @@
 
 ### Domain docs
 
-单一上下文：根目录 `CONTEXT.md` + `docs/adr/`。参见 `docs/agents/domain.md`。
+单一上下文：根目录 `GLOSSARY.md` + `docs/adr/`。参见 `docs/agents/domain.md`。

@@ -14,13 +14,9 @@ type LLM interface {
 type Tool interface {
 	Name() string
 	Description() string
+	Summary() string
 	Schema() map[string]any
 	Execute(ctx context.Context, args string) (Content, error)
-}
-
-type DynTool interface {
-	Tool
-	Summary() string
 }
 
 type Store interface {

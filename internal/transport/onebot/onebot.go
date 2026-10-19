@@ -19,6 +19,9 @@ import (
 
 const errorMessage = "出错了，请稍后再试"
 
+// scenarioPrompt onebot 场景的专属提示词。
+const scenarioPrompt = "The user is chatting with you via OneBot on QQ. Keep replies short and plain; avoid heavy formatting such as tables, which render poorly in chat clients."
+
 const (
 	dialTimeout    = 10 * time.Second
 	writeTimeout   = 10 * time.Second
@@ -173,7 +176,7 @@ func (o *OneBot) handleMessage(payload []byte) error {
 			o.send(evt, formatToolExecution(result.Name, arguments))
 		}
 	}
-	agt, err := o.hub.GetOrCreate(key, append(append([]agent.Option{}, o.opts...), agent.WithNonblock(true), agent.WithOnEvent(onEvent))...)
+	agt, err := o.hub.GetOrCreate(key, append(append([]agent.Option{}, o.opts...), agent.WithNonblock(true), agent.WithOnEvent(onEvent), agent.WithScenarioPrompt(scenarioPrompt))...)
 	if err != nil {
 		return fmt.Errorf("get onebot agent: %w", err)
 	}
@@ -201,7 +204,7 @@ func truncateRunes(text string, max int) string {
 	return string(runes[:max]) + "... [truncated]"
 }
 
-// reply 将输入交给非阻塞 agent，并发送最终回复。
+// reply 将输入交给非阻塞 agent，并发送最终回复（文本与图片）。
 func (o *OneBot) reply(evt Event, agt *agent.Agent, input string) {
 	log := o.log.With("chat_key", chatKey(evt.MessageType, evt.UserID, evt.GroupID))
 	result, err := agt.Run(context.Background(), []agent.Message{{Role: agent.RoleUser, Content: agent.TextContent(input)}})
@@ -213,13 +216,13 @@ func (o *OneBot) reply(evt Event, agt *agent.Agent, input string) {
 		o.send(evt, errorMessage)
 		return
 	}
-	text := result.Content.Text()
-	if text == "" {
+	msg := formatReply(result.Content)
+	if msg == "" {
 		log.Debug("onebot reply skipped", "reason", "empty response")
 		return
 	}
-	o.log.Info("onebot message sent", "message_type", evt.MessageType, "user_id", evt.UserID, "group_id", evt.GroupID, "msg", text)
-	o.send(evt, text)
+	o.log.Info("onebot message sent", "message_type", evt.MessageType, "user_id", evt.UserID, "group_id", evt.GroupID, "msg", result.Content.Text())
+	o.send(evt, msg)
 }
 
 // send 向当前连接发送回复，失败仅记录。

@@ -18,6 +18,8 @@ import (
 
 const editDescription = "Edit a single file using exact text replacement. Every edits[].oldText must match a unique, non-overlapping region of the original file. If two changes affect the same block or nearby lines, merge them into one edit instead of emitting overlapping edits. Do not include large unchanged regions just to connect distant changes."
 
+const editSummary = "Apply exact text replacements to a single file."
+
 var editItemSchema = objectSchema(map[string]any{
 	"oldText": strProp("Exact text for one targeted replacement. It must be unique in the original file and must not overlap with any other edits[].oldText in the same call."),
 	"newText": strProp("Replacement text for this targeted edit."),
@@ -138,6 +140,8 @@ type editTool struct{}
 func (t *editTool) Name() string { return "edit" }
 
 func (t *editTool) Description() string { return editDescription }
+
+func (t *editTool) Summary() string { return editSummary }
 
 func (t *editTool) Schema() map[string]any { return editSchema }
 

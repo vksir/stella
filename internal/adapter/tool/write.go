@@ -14,6 +14,8 @@ import (
 
 const writeDescription = "Write content to a file. Creates the file if it doesn't exist, overwrites if it does. Automatically creates parent directories."
 
+const writeSummary = "Write content to a file, creating parent directories as needed."
+
 var writeSchema = objectSchema(map[string]any{
 	"path":    strProp("Path to the file to write (relative or absolute)"),
 	"content": strProp("Content to write to the file"),
@@ -25,6 +27,8 @@ type writeTool struct{}
 func (t *writeTool) Name() string { return "write" }
 
 func (t *writeTool) Description() string { return writeDescription }
+
+func (t *writeTool) Summary() string { return writeSummary }
 
 func (t *writeTool) Schema() map[string]any { return writeSchema }
 

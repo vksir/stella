@@ -39,6 +39,8 @@ type BashOptions struct {
 
 const bashDescription = "Execute a bash command in the current working directory. Returns stdout and stderr. Output is truncated to last 2000 lines or 50KB (whichever is hit first). If truncated, full output is saved to a temp file. Optionally provide a timeout in seconds."
 
+const bashSummary = "Run a bash command in the current working directory."
+
 var bashSchema = objectSchema(map[string]any{
 	"command": strProp("Bash command to execute"),
 	"timeout": numProp("Timeout in seconds (optional, no default timeout)"),
@@ -69,6 +71,8 @@ func NewBash(options ...BashOptions) agent.Tool {
 func (bt *bashTool) Name() string { return "bash" }
 
 func (bt *bashTool) Description() string { return bashDescription }
+
+func (bt *bashTool) Summary() string { return bashSummary }
 
 func (bt *bashTool) Schema() map[string]any { return bashSchema }
 

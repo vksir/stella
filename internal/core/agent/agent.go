@@ -22,12 +22,14 @@ var (
 
 type Config struct {
 	name            string
-	systemPrompt    string
+	prompt          *SystemPrompt
+	scenarioPrompt  string
+	extensions      []Extension
 	model           string
 	reasoningEffort string
 	temperature     *float64
 	tools           *collection.OrderedMap[string, Tool]
-	dynTools        *collection.OrderedMap[string, DynTool]
+	dynTools        *collection.OrderedMap[string, Tool]
 
 	llm      LLM
 	store    Store
@@ -51,21 +53,61 @@ type Agent struct {
 
 func New(name string, opts ...Option) (*Agent, error) {
 	cfg := Config{
-		name:         name,
-		systemPrompt: agentPrompt,
-		tools:        collection.NewOrderedMap[string, Tool](),
-		dynTools:     collection.NewOrderedMap[string, DynTool](),
-		log:          slog.Default(),
-		onEvent:      func(ctx context.Context, event Event) {},
-		maxTurn:      defaultMaxTurn,
+		name:     name,
+		tools:    collection.NewOrderedMap[string, Tool](),
+		dynTools: collection.NewOrderedMap[string, Tool](),
+		log:      slog.Default(),
+		onEvent:  func(ctx context.Context, event Event) {},
+		maxTurn:  defaultMaxTurn,
 	}
 	for _, opt := range opts {
 		opt(&cfg)
 	}
 
+	// 探测扩展能力接口，收集贡献：工具、dyn 工具、提示词段与事件监听
+	var sections []PromptSection
+	var listeners []EventListener
+	for _, ext := range cfg.extensions {
+		if p, ok := ext.(ToolProvider); ok {
+			for _, t := range p.Tools() {
+				cfg.tools.Set(t.Name(), t)
+			}
+		}
+		if p, ok := ext.(DynToolProvider); ok {
+			for _, t := range p.DynTools() {
+				cfg.dynTools.Set(t.Name(), t)
+			}
+		}
+		if p, ok := ext.(PromptSectionProvider); ok {
+			sections = append(sections, p.PromptSections()...)
+		}
+		if l, ok := ext.(EventListener); ok {
+			listeners = append(listeners, l)
+		}
+		cfg.log.Debug("extension registered", "extension", ext.Name())
+	}
+	// 事件扇出：先用户回调，后扩展监听器，按注册顺序同步派发
+	if len(listeners) > 0 {
+		userOnEvent := cfg.onEvent
+		cfg.onEvent = func(ctx context.Context, event Event) {
+			userOnEvent(ctx, event)
+			for _, l := range listeners {
+				l.OnEvent(ctx, event)
+			}
+		}
+	}
+
 	dyn := newDynGateway(cfg.dynTools)
 	if cfg.dynTools.Len() > 0 {
 		cfg.tools.Set(dyn.Name(), dyn)
+	}
+
+	cfg.prompt = &SystemPrompt{
+		identity: agentPrompt,
+		scenario: cfg.scenarioPrompt,
+		tools:    cfg.tools,
+		dynTools: cfg.dynTools,
+		sections: sections,
 	}
 
 	cfg.log = cfg.log.With("agent", name)
@@ -234,7 +276,7 @@ func (a *Agent) executeTools(ctx context.Context, toolCalls []ToolCall) []Messag
 func (a *Agent) toChatRequest() ChatRequest {
 	request := ChatRequest{
 		Model:           a.model,
-		SystemPrompt:    a.buildSystemPrompt(),
+		SystemPrompt:    a.prompt.Build(),
 		Messages:        append(a.session.Messages, a.appendant...),
 		ReasoningEffort: a.session.ReasoningEffort,
 	}
@@ -253,25 +295,6 @@ func (a *Agent) toChatRequest() ChatRequest {
 	return request
 }
 
-func (a *Agent) buildSystemPrompt() string {
-	var prompt strings.Builder
-	if a.systemPrompt != "" {
-		prompt.WriteString(a.systemPrompt)
-		prompt.WriteString("\n\n")
-	}
-
-	if a.dynTools.Len() > 0 {
-		prompt.WriteString("Dynamic tools are accessed through dyn. Available dynamic tools:\n")
-		for name, tool := range a.dyn.tools.All() {
-			prompt.WriteString("- ")
-			prompt.WriteString(name)
-			prompt.WriteString(": ")
-			prompt.WriteString(tool.Summary())
-			prompt.WriteByte('\n')
-		}
-	}
-	return strings.TrimSuffix(prompt.String(), "\n")
-}
 
 type toolCallBuilder struct {
 	ID   string

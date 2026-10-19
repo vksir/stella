@@ -25,13 +25,22 @@ func WithTools(tools ...Tool) Option {
 	}
 }
 
-func WithDynTools(tools ...DynTool) Option {
-	tools = append([]DynTool(nil), tools...)
+func WithDynTools(tools ...Tool) Option {
+	tools = append([]Tool(nil), tools...)
 	return func(c *Config) {
 		for _, tool := range tools {
 			c.dynTools.Set(tool.Name(), tool)
 		}
 	}
+}
+
+func WithExtensions(exts ...Extension) Option {
+	exts = append([]Extension(nil), exts...)
+	return func(c *Config) { c.extensions = append(c.extensions, exts...) }
+}
+
+func WithScenarioPrompt(prompt string) Option {
+	return func(c *Config) { c.scenarioPrompt = prompt }
 }
 
 func WithLLM(llm LLM) Option {
