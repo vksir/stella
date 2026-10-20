@@ -42,6 +42,11 @@ func parseOpenRouterUsage(raw []byte) (agent.Usage, error) {
 	return parseOpenAIUsage(raw)
 }
 
+// parseZaiUsage 解析 ZAI（智谱）用量，缓存命中位于 prompt_tokens_details.cached_tokens。
+func parseZaiUsage(raw []byte) (agent.Usage, error) {
+	return parseOpenAIUsage(raw)
+}
+
 // parseDeepSeekUsage 解析 DeepSeek 用量，缓存命中位于 prompt_cache_hit_tokens。
 func parseDeepSeekUsage(raw []byte) (agent.Usage, error) {
 	var u struct {

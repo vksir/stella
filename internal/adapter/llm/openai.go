@@ -31,6 +31,8 @@ type OpenAI struct {
 	temperature     *float64
 	usageParser     UsageParser
 	supportsImages  bool
+	thinkingControl bool
+	toolStream      bool
 }
 
 // NewOpenAI 创建 OpenAI 客户端，baseURL、reasoningField、usageParser 由 provider 配置注入。
@@ -101,6 +103,16 @@ func WithSupportsImages(supported bool) Option {
 	return func(o *OpenAI) { o.supportsImages = supported }
 }
 
+// WithThinkingControl 启用 ZAI 风格 thinking 字段，reasoning_effort 非空时开启推理，否则关闭。
+func WithThinkingControl() Option {
+	return func(o *OpenAI) { o.thinkingControl = true }
+}
+
+// WithToolStream 启用 ZAI 风格 tool_stream 字段，工具调用参数以增量流式下发。
+func WithToolStream() Option {
+	return func(o *OpenAI) { o.toolStream = true }
+}
+
 // Chat 发起流式请求，request.Model 为 provider 原生模型名，增量通过 onEvent 回调。
 func (o *OpenAI) Chat(ctx context.Context, request agent.ChatRequest, onEvent agent.OnEvent) error {
 	model := request.Model
@@ -166,12 +178,16 @@ func (o *OpenAI) buildRequest(request agent.ChatRequest) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	effort := o.reasoningEffort
+	if request.ReasoningEffort != "" {
+		effort = request.ReasoningEffort
+	}
 	req := chatRequest{
 		Model:           o.model,
 		Stream:          true,
 		Messages:        messages,
 		Temperature:     o.temperature,
-		ReasoningEffort: o.reasoningEffort,
+		ReasoningEffort: effort,
 	}
 	if request.Model != "" {
 		req.Model = request.Model
@@ -179,8 +195,14 @@ func (o *OpenAI) buildRequest(request agent.ChatRequest) ([]byte, error) {
 	if request.Temperature != nil {
 		req.Temperature = request.Temperature
 	}
-	if request.ReasoningEffort != "" {
-		req.ReasoningEffort = request.ReasoningEffort
+	if o.thinkingControl {
+		req.Thinking = &chatThinking{Type: "enabled"}
+		if effort == "" {
+			req.Thinking = &chatThinking{Type: "disabled"}
+		}
+	}
+	if o.toolStream && len(request.Tools) > 0 {
+		req.ToolStream = true
 	}
 
 	for _, tool := range request.Tools {
@@ -497,12 +519,18 @@ func mapFinishReason(s string) agent.FinishReason {
 }
 
 type chatRequest struct {
-	Model           string           `json:"model"`
+	Model           string        `json:"model"`
 	Messages        []map[string]any `json:"messages"`
 	Tools           []chatTool       `json:"tools,omitempty"`
 	Stream          bool             `json:"stream"`
 	Temperature     *float64         `json:"temperature,omitempty"`
 	ReasoningEffort string           `json:"reasoning_effort,omitempty"`
+	Thinking        *chatThinking    `json:"thinking,omitempty"`
+	ToolStream      bool             `json:"tool_stream,omitempty"`
+}
+
+type chatThinking struct {
+	Type string `json:"type"`
 }
 
 type chatTool struct {

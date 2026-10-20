@@ -23,6 +23,13 @@ var providerOpts = map[string][]Option{
 		WithReasoningField("reasoning"),
 		WithUsageParser(parseOpenRouterUsage),
 	},
+	"zai-coding-cn": {
+		WithBaseURL("https://open.bigmodel.cn/api/coding/paas/v4"),
+		WithReasoningField("reasoning_content"),
+		WithUsageParser(parseZaiUsage),
+		WithThinkingControl(),
+		WithToolStream(),
+	},
 }
 
 // newClient 按 provider 创建客户端，model 为 provider 原生模型名，不受 extra 覆盖。
