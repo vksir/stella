@@ -3,6 +3,7 @@ package onebot
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -28,25 +29,30 @@ const (
 	reconnectDelay = 3 * time.Second
 )
 
+// ExtensionFactory 按私聊用户构造扩展，sendImage 直发图片到该会话。
+type ExtensionFactory func(userID int64, sendImage func([]byte)) []agent.Extension
+
 // OneBot 驱动 agent，通过当前 WebSocket 连接发送回复。
 type OneBot struct {
-	hub         *hub.AgentHub
-	url         string
-	accessToken string
-	opts        []agent.Option
-	log         *slog.Logger
-	mu          sync.RWMutex
-	writeMu     sync.Mutex
-	conn        *websocket.Conn
+	hub              *hub.AgentHub
+	url              string
+	accessToken      string
+	extensionFactory ExtensionFactory
+	opts             []agent.Option
+	log              *slog.Logger
+	mu               sync.RWMutex
+	writeMu          sync.Mutex
+	conn             *websocket.Conn
 }
 
-func New(agentHub *hub.AgentHub, url, accessToken string, opts ...agent.Option) *OneBot {
+func New(agentHub *hub.AgentHub, url, accessToken string, extensionFactory ExtensionFactory, opts ...agent.Option) *OneBot {
 	o := &OneBot{
-		hub:         agentHub,
-		url:         url,
-		accessToken: accessToken,
-		opts:        append([]agent.Option(nil), opts...),
-		log:         slog.Default(),
+		hub:              agentHub,
+		url:              url,
+		accessToken:      accessToken,
+		extensionFactory: extensionFactory,
+		opts:             append([]agent.Option(nil), opts...),
+		log:              slog.Default(),
 	}
 	return o
 }
@@ -176,7 +182,16 @@ func (o *OneBot) handleMessage(payload []byte) error {
 			o.send(evt, formatToolExecution(result.Name, arguments))
 		}
 	}
-	agt, err := o.hub.GetOrCreate(key, append(append([]agent.Option{}, o.opts...), agent.WithNonblock(true), agent.WithOnEvent(onEvent), agent.WithScenarioPrompt(scenarioPrompt))...)
+	// 私聊装配扩展：闭包捕获用户与发图通道，群聊暂不装配
+	chatOpts := append([]agent.Option{}, o.opts...)
+	chatOpts = append(chatOpts, agent.WithNonblock(true), agent.WithOnEvent(onEvent), agent.WithScenarioPrompt(scenarioPrompt))
+	if o.extensionFactory != nil && evt.MessageType == msgTypePrivate {
+		sendImage := func(png []byte) {
+			o.send(evt, "[CQ:image,file=base64://"+base64.StdEncoding.EncodeToString(png)+"]")
+		}
+		chatOpts = append(chatOpts, agent.WithExtensions(o.extensionFactory(evt.UserID, sendImage)...))
+	}
+	agt, err := o.hub.GetOrCreate(key, chatOpts...)
 	if err != nil {
 		return fmt.Errorf("get onebot agent: %w", err)
 	}

@@ -3,6 +3,7 @@ package app
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"github.com/vksir/stella/internal/adapter/llm"
 	"github.com/vksir/stella/internal/adapter/store"
 	"github.com/vksir/stella/internal/adapter/tool"
+	bookkeeping "github.com/vksir/stella/internal/extension/bookkeeping"
 	"github.com/vksir/stella/internal/core/agent"
 	"github.com/vksir/stella/internal/core/hub"
 	"github.com/vksir/stella/internal/infra/config"
@@ -57,15 +59,22 @@ func run(cfg *config.Config) error {
 	defer stop()
 
 	var sessionStore agent.Store
+	var db *sql.DB
+	var err error
 	switch cfg.Store.Type {
 	case "memory":
 		sessionStore = store.NewMemory()
+		// 记账扩展使用内存 SQLite，随进程消亡
+		db, err = sql.Open("sqlite", ":memory:")
+		if err != nil {
+			return fmt.Errorf("open memory sqlite: %w", err)
+		}
+		db.SetMaxOpenConns(1)
 	case "database":
-		db, err := database.Open(cfg.Database)
+		db, err = database.Open(cfg.Database)
 		if err != nil {
 			return err
 		}
-		defer db.Close()
 		sessionStore, err = store.NewDatabase(ctx, db)
 		if err != nil {
 			return err
@@ -74,23 +83,33 @@ func run(cfg *config.Config) error {
 	default:
 		return fmt.Errorf("unsupported store type %q", cfg.Store.Type)
 	}
+	defer db.Close()
+
+	bkStore, err := bookkeeping.NewStore(ctx, db)
+	if err != nil {
+		return err
+	}
+	// 记账扩展按私聊用户构造，发图函数由 onebot 提供
+	extensionFactory := func(userID int64, sendImage func([]byte)) []agent.Extension {
+		return []agent.Extension{bookkeeping.New(bkStore, userID, sendImage)}
+	}
 
 	opts, err := newAgentOptions(cfg, sessionStore)
 	if err != nil {
 		return err
 	}
-	stopOnebot := startOnebot(ctx, cfg, opts)
+	stopOnebot := startOnebot(ctx, cfg, opts, extensionFactory)
 	defer stopOnebot()
 	return runHTTPServer(ctx, cfg)
 }
 
-func startOnebot(ctx context.Context, cfg *config.Config, opts []agent.Option) func() {
+func startOnebot(ctx context.Context, cfg *config.Config, opts []agent.Option, extensionFactory onebot.ExtensionFactory) func() {
 	agentHub := hub.NewAgentHub(0)
 	wsCtx, cancelWS := context.WithCancel(ctx)
 	wsDone := make(chan struct{})
 	go func() {
 		defer close(wsDone)
-		onebot.New(agentHub, cfg.Onebot.URL, cfg.Onebot.AccessToken, opts...).Run(wsCtx)
+		onebot.New(agentHub, cfg.Onebot.URL, cfg.Onebot.AccessToken, extensionFactory, opts...).Run(wsCtx)
 	}()
 	return func() {
 		cancelWS()
