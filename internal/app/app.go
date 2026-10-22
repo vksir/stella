@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/vksir/stella/internal/adapter/llm"
@@ -44,20 +45,39 @@ func Run(cfgPath string) error {
 	if err != nil {
 		return err
 	}
+	if err := setupLogger(cfg.Log); err != nil {
+		return err
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	return run(ctx, cfg)
+}
 
-	logger, err := logx.New(cfg.Log)
+// RunService 以 daemon 服务模式运行：生命周期由外部 ctx 控制，日志默认落盘。
+func RunService(ctx context.Context, cfgPath string) error {
+	cfg, err := config.Load(cfgPath)
+	if err != nil {
+		return err
+	}
+	if cfg.Log.File == "" {
+		cfg.Log.File = "data/stella.log"
+	}
+	if err := setupLogger(cfg.Log); err != nil {
+		return err
+	}
+	return run(ctx, cfg)
+}
+
+func setupLogger(cfg config.LogConfig) error {
+	logger, err := logx.New(cfg)
 	if err != nil {
 		return err
 	}
 	slog.SetDefault(logger)
-
-	return run(cfg)
+	return nil
 }
 
-func run(cfg *config.Config) error {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer stop()
-
+func run(ctx context.Context, cfg *config.Config) error {
 	var sessionStore agent.Store
 	var db *sql.DB
 	var err error
